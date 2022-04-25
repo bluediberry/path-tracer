@@ -1,3 +1,4 @@
+import Driver from './Driver.js';
 import Vector3 from './Vector3.js'
 
 const MAX_RAY_DEPTH = 1;
@@ -92,44 +93,23 @@ export default class RayTracer {
         return surfaceColor;
     }
 
-    storeCoordinate(x, y, array) {
-        array.push(x);
-        array.push(y);
-    }
 
-    getRandomIntInclusive(min, max) {
-        min = Math.ceil(min);
-        max = Math.floor(max);
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      }
 
     getCoords(width, height, coords, isFirstFrame){
+        var driver = new Driver(width, height);
 
-        var counter = 0;
-        var x = 0;
-        var y = 0;
         if(isFirstFrame == 0){
-            while(counter < width*height/8){
-                x = this.getRandomIntInclusive(0, width);
-                y = this.getRandomIntInclusive(0, height);
-                this.storeCoordinate(x, y, coords);
-                counter++;
-            }
+            driver.InitializeCache(width, height, coords);
         }
         else{
-            while(counter < width*height/8){
-                x = this.getRandomIntInclusive(0, width);
-                y = this.getRandomIntInclusive(0, height);
-                this.storeCoordinate(x, y, coords);
-                counter++;
-            }
+            driver.InitializeCache(width, height, coords);
         }
 
         return coords;
     }
 
     render(width, height, startY, scanHeight, isFirstFrame) {
-        console.log(isFirstFrame);
+        //console.log(isFirstFrame);
         if(startY == undefined) {
             startY = 0;
         }

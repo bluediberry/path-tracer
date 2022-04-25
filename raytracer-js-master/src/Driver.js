@@ -12,12 +12,12 @@ export default class Driver {
 		this.width = width;
 		this.height = height;
 
-		this.Cache=NULL;		
-		this.Buffer=NULL;	
+		//this.Cache=NULL;		
+		//this.Buffer=NULL;	
 
-		this.PixelsToSample = NULL;
+		//this.PixelsToSample = NULL;
 
-		this.AddressY = NULL;
+		//this.AddressY = NULL;
 		
 		this.CacheSize=0;	
 		this.CachePointer=0;
@@ -25,7 +25,7 @@ export default class Driver {
 		this.NumberOfSamples=0;
 		this.Threshold=0;
 
-		this.MaximumSamplesPerFrame = 1000;
+		this.MaximumSamplesPerFrame = width*height/8;
 		
 		this.InterpolationRandom = 5;
 		this.InterpolationZero = 20;
@@ -44,10 +44,10 @@ export default class Driver {
 		//this.ToneMap=new CToneMapping(this,true);
 		//this.Connection=new CConnection();        	
 
-		this.Requests=new Array();
+		/*this.Requests=new Array();
 		for (var i=0; i<MAX_REQUEST_BUFFER; i++) {
 			this.Requests[i] = new TRequest();
-		}
+		}*/
 
 		/*this.ASocket=Connection.GetSocket();
 		this.AStart=ReqStart;
@@ -164,18 +164,45 @@ export default class Driver {
 		// TODO: samplecount?
 		// this.SampleCount = &(PixelsToSample[0]);		
 	}
-	/////////////////////////////////////////////////////////////////////////////
-	InitializeCache() {
+
+/////////////////////////////////////////////////////////////////////////////
+    storeCoordinate(x, y, array) {
+        array.push(x);
+        array.push(y);
+    }
+
+/////////////////////////////////////////////////////////////////////////////
+    getRandomIntInclusive(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+/////////////////////////////////////////////////////////////////////////////
+	InitializeCache(width, height, coords) {
 	
 		var Count = 0;	
 		var CacheUsage = 0.0; 
 		var InitialFill = 0.20;
+		var x = 0;
+		var y = 0;
+
+	//while(CacheUsage < InitialFill) //slows down a lot
+	//	{
+			for(var i=0; i < this.MaximumSamplesPerFrame; i++){
+				x = this.getRandomIntInclusive(0, width);
+				y = this.getRandomIntInclusive(0, height);
+				this.storeCoordinate(x, y, coords);
+			}
+			//this.RequestSamples(0);		
+			//this.AgeCache(this.AgeFactor);
+			//console.log("Cache usage: ", CacheUsage * 100.0);
+		//	Count++;
+		//	CacheUsage += 0.02;
+		//}
 
 
-		//ACache=Cache;
-		//ACacheSize=CacheSize;
-
-		while (CacheUsage < InitialFill)
+		/*while (CacheUsage < InitialFill)
 		{		
 			var sx = this.width - 1;
 			var sy = this.height - 1;
@@ -189,9 +216,9 @@ export default class Driver {
 			console.log("Cache usage: ", this.CacheUsage * 100.0);
 			this.Count++;
 			this.CacheUsage += 0.02;
-		}
+		}*/
 	
-		console.log(Count + " iterations to fill " + (InitialFill * 100.0) + " of cache");
+		//console.log(Count + " iterations to fill " + (InitialFill * 100.0) + "% of cache");
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	ResetBuffers(Changes) {
@@ -545,7 +572,7 @@ export default class Driver {
 		}		
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	RequestSamples(FrameCount /* long*/) {	
+	RequestSamples(FrameCount) {	
 
 		var index = 0;
 
