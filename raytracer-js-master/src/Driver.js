@@ -24,7 +24,7 @@ export default class Driver {
 		this.NumberOfSamples=0;
 		this.Threshold=0;
 
-		this.MaximumSamplesPerFrame = width*height/8;
+		this.MaximumSamplesPerFrame = width*height/16;
 		
 		this.InterpolationRandom = 5;
 		this.InterpolationZero = 20;
@@ -35,7 +35,7 @@ export default class Driver {
 		this.CacheFactor = 1.5;
 		this.DepthThreshold=1E+06;	
 			
-		this.AgeFactor=1;	
+		this.AgeFactor = 1;	
 
 		this.InterpolationZero=0;
 		this.MinimumRadiance=0.00001; // 5.58569E-07;   // 10E-04 is minimum luminance of human eye
@@ -87,8 +87,8 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	Prepare() {
 		//this.AllocBuffers(); //?
-		this.AllocCache();
-		this.AllocRendering();	
+		//this.AllocCache();
+		//this.AllocRendering();	
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	AllocBuffers() {
@@ -180,10 +180,10 @@ export default class Driver {
 	}
 
 /////////////////////////////////////////////////////////////////////////////
-    storeCoordinate(xval, yval, array) {
+    storeCoordinate(xval, yval, age, resample, weight, array) {
         //array.push(x);
         //array.push(y);
-		array.push({x: xval, y: yval});
+		array.push({x: xval, y: yval, age: age, resample: resample, weight: weight});
     }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -202,22 +202,25 @@ export default class Driver {
 		var x = 0;
 		var y = 0;
 
-	//while(CacheUsage < InitialFill) //slows down a lot
-	//	{
+	while(CacheUsage < InitialFill) //slows down a lot
+		{
 			for(var i=0; i < this.MaximumSamplesPerFrame; i++){
 				x = this.getRandomIntInclusive(0, width);
 				y = this.getRandomIntInclusive(0, height);
-				this.storeCoordinate(x, y, coords);
+				//store x, y, age, resample, weight in coords array
+				// best way?
+				this.storeCoordinate(x, y, 0, true, 0, coords);
 			}
-			this.RequestSamples(0);		
-			//this.AgeCache(this.AgeFactor);
-			//console.log("Cache usage: ", CacheUsage * 100.0);
-		//	Count++;
-		//	CacheUsage += 0.02;
-		//}
+			//this.RequestSamples(0);	//see	
+			this.AgeCache(this.AgeFactor, coords); //see
+			console.log("Cache usage: ", CacheUsage * 100.0);
+			Count++;
+			CacheUsage += 0.02;
+		}
 	
-		//console.log(Count + " iterations to fill " + (InitialFill * 100.0) + "% of cache");
+		console.log(Count + " iterations to fill " + (InitialFill * 100.0) + "% of cache");
 	}
+
 	/////////////////////////////////////////////////////////////////////////////
 	ResetBuffers(Changes) {
 
@@ -597,7 +600,7 @@ export default class Driver {
 		}
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	AddRequest(Sample /* TSample */, RayDir /* TVector3D */) {
+	AddRequest(Sample /* TSample */, RayDir /* TVector3D */) { //WIP
 	
 		this.Requests[this.ReqCurrent].x=RayDir.x;
 		this.Requests[this.ReqCurrent].y=RayDir.y;
@@ -613,10 +616,14 @@ export default class Driver {
 			this.ReqCurrent = 0;
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	AgeCache(Step /* int */ ) {
-		for (var i=0; i < this.CacheSize; i++) {
-			this.Cache[i].Age += Step;
+	AgeCache(Step, coords) { //WIP
+		for(var i = 0; i < coords.length; i++){
+			coords[i].age += Step;
 		}
+		
+		/*for (var i=0; i < this.CacheSize; i++) {
+			this.Cache[i].Age += Step;
+		}*/
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	GetCacheUsage() {	

@@ -102,10 +102,27 @@ export default class RayTracer {
             driver.InitializeCache(width, height, coords);
         }
         else{
-            driver.InitializeCache(width, height, coords);
+            this.nextFrame(width, height, coords, driver);
         }
 
         return coords;
+    }
+
+    nextFrame(width, height, coords, driver){
+        driver.InitializeCache(width, height, coords);
+
+        /*driver.ReprojectFrame();
+
+        driver.DepthCulling();
+
+        driver.Interpolation();
+
+        driver.DirectSamples();
+
+        driver.RequestSamples();
+
+        driver.AgeCache();*/
+
     }
 
     render(width, height, startY, scanHeight, isFirstFrame, driver) {
