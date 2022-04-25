@@ -166,9 +166,10 @@ export default class Driver {
 	}
 
 /////////////////////////////////////////////////////////////////////////////
-    storeCoordinate(x, y, array) {
-        array.push(x);
-        array.push(y);
+    storeCoordinate(xval, yval, array) {
+        //array.push(x);
+        //array.push(y);
+		array.push({x: xval, y: yval});
     }
 
 /////////////////////////////////////////////////////////////////////////////

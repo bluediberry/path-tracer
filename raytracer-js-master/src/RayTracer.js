@@ -133,7 +133,7 @@ export default class RayTracer {
         var angle = Math.tan(Math.PI * 0.5 * fov / 180);
         var rayOrigin = new Vector3(0, 0, 0);
         var pixelIndex = 0;
-        var coords = new Array();
+        var coords = [];
         this.getCoords(width, height, coords, isFirstFrame);
         var x = 0;
         var y = 0;
@@ -141,9 +141,9 @@ export default class RayTracer {
         // trace rays
         // for (var y=startY; y<startY+scanHeight; ++y) {
           //  for (var x=0; x<width; ++x, ++pixelIndex) {
-             for (var i = 0; i < coords.length; i+=2) {
-                x = coords[i];
-                y = coords[i+1];
+             for (var i = 0; i < coords.length; i++) {
+                x = coords[i].x;
+                y = coords[i].y;
                 
                 var pixelIndex = width*(y - startY) - (width - x);
 
