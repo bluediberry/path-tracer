@@ -2,6 +2,7 @@ import RayTracer from './RayTracer.js'
 import Scene from './Scene.js'
 import Sphere from './Sphere.js'
 import Vector3 from './Vector3.js'
+import Driver from '../src/Driver.js'
 
 var messageHandler = undefined;
 
@@ -55,7 +56,9 @@ function startRendering()
 {
     var startTime = new Date();
     var rayTracer = new RayTracer(backgroundColor, scene);
-    var buffer = rayTracer.render(rendererWidth, rendererHeight, startY, scanHeight, isFirstFrame);
+    //driver
+    var driver = new Driver(rendererWidth, rendererHeight);
+    var buffer = rayTracer.render(rendererWidth, rendererHeight, startY, scanHeight, isFirstFrame, driver);
     var endTime = new Date();
     isFirstFrame = 1;
 

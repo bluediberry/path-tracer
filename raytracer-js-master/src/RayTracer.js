@@ -95,8 +95,8 @@ export default class RayTracer {
 
 
 
-    getCoords(width, height, coords, isFirstFrame){
-        var driver = new Driver(width, height);
+    getCoords(width, height, coords, isFirstFrame, driver){
+        //var driver = new Driver(width, height);
 
         if(isFirstFrame == 0){
             driver.InitializeCache(width, height, coords);
@@ -108,7 +108,7 @@ export default class RayTracer {
         return coords;
     }
 
-    render(width, height, startY, scanHeight, isFirstFrame) {
+    render(width, height, startY, scanHeight, isFirstFrame, driver) {
         //console.log(isFirstFrame);
         if(startY == undefined) {
             startY = 0;
@@ -134,7 +134,7 @@ export default class RayTracer {
         var rayOrigin = new Vector3(0, 0, 0);
         var pixelIndex = 0;
         var coords = [];
-        this.getCoords(width, height, coords, isFirstFrame);
+        this.getCoords(width, height, coords, isFirstFrame, driver);
         var x = 0;
         var y = 0;
 

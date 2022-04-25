@@ -180,7 +180,7 @@ export default class Driver {
       }
 
 /////////////////////////////////////////////////////////////////////////////
-	InitializeCache(width, height, coords) {
+	InitializeCache(width, height, coords) { //WIP
 	
 		var Count = 0;	
 		var CacheUsage = 0.0; 
@@ -201,23 +201,6 @@ export default class Driver {
 		//	Count++;
 		//	CacheUsage += 0.02;
 		//}
-
-
-		/*while (CacheUsage < InitialFill)
-		{		
-			var sx = this.width - 1;
-			var sy = this.height - 1;
-
-			for (var i=0; i < this.MaximumSamplesPerFrame; i++) {
-				this.PixelsToSample[i].x = Math.round(Math.Random() * (sx - 1));
-				this.PixelsToSample[i].y = Math.round(Math.Random() * (sy - 1));
-			}
-			this.RequestSamples(0);		
-			this.AgeCache(this.AgeFactor);
-			console.log("Cache usage: ", this.CacheUsage * 100.0);
-			this.Count++;
-			this.CacheUsage += 0.02;
-		}*/
 	
 		//console.log(Count + " iterations to fill " + (InitialFill * 100.0) + "% of cache");
 	}

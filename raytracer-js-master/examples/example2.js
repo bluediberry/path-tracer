@@ -53,7 +53,7 @@ var canvasWidth  = canvas.width;
 var canvasHeight = canvas.height;
 
 //driver
-//var driver = new Driver(canvasWidth, canvasHeight);
+var driver = new Driver(canvasWidth, canvasHeight);
 
 // save start time
 var startTime = Date.now();
@@ -64,7 +64,7 @@ var fcounter = 0;
 var resultDiv = document.getElementById("resultDiv");
 function render(){
     // render
-    var buffer = rayTracer.render(canvasWidth, canvasHeight, undefined, undefined,isFirstFrame);
+    var buffer = rayTracer.render(canvasWidth, canvasHeight, undefined, undefined,isFirstFrame, driver);
     isFirstFrame = 1;
     // copy ray tracer buffer to canvas
     var buf8 = new Uint8ClampedArray(buffer);

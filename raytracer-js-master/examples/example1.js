@@ -3,6 +3,7 @@ import Scene from '../src/Scene.js'
 import Sphere from '../src/Sphere.js'
 import Material from '../src/Material.js'
 import Vector3 from '../src/Vector3.js'
+import Driver from '../src/Driver.js'
 
 // create scene
 var scene = new Scene();
@@ -52,13 +53,16 @@ var ctx = canvas.getContext('2d');
 var canvasWidth  = canvas.width;
 var canvasHeight = canvas.height;
 
+//driver
+var driver = new Driver(canvasWidth, canvasHeight);
+
 document.getElementById("startButtonId").addEventListener('click', () => {
     var isFirstFrame = true;
     // save start time
     var startTime = Date.now();
 
     // render
-    var buffer = rayTracer.render(canvasWidth, canvasHeight, isFirstFrame);
+    var buffer = rayTracer.render(canvasWidth, canvasHeight, undefined, undefined, isFirstFrame, driver);
 
     // copy ray tracer buffer to canvas
     var buf8  = new Uint8ClampedArray(buffer);

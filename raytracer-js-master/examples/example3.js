@@ -54,6 +54,7 @@ var ctx = canvas.getContext('2d');
 var canvasWidth  = canvas.width;
 var canvasHeight = canvas.height;
 
+
 var startTime = Date.now();
 var frameCount = 0;
 var totalFrames = 0;
