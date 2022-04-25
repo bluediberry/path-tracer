@@ -54,7 +54,7 @@ var canvasHeight = canvas.height;
 
 //driver
 var driver = new Driver(canvasWidth, canvasHeight);
-
+driver.Prepare();
 // save start time
 var startTime = Date.now();
 

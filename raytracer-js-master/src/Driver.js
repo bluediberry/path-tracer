@@ -12,12 +12,11 @@ export default class Driver {
 		this.width = width;
 		this.height = height;
 
-		//this.Cache=NULL;		
-		//this.Buffer=NULL;	
+		this.Cache = undefined;	
 
-		//this.PixelsToSample = NULL;
-
-		//this.AddressY = NULL;
+		this.Buffer = undefined;	
+		this.PixelsToSample = undefined;
+		this.AddressY = undefined;
 		
 		this.CacheSize=0;	
 		this.CachePointer=0;
@@ -87,7 +86,7 @@ export default class Driver {
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	Prepare() {
-		this.AllocBuffers();
+		//this.AllocBuffers(); //?
 		this.AllocCache();
 		this.AllocRendering();	
 	}
@@ -96,70 +95,85 @@ export default class Driver {
 
 		var x,y,i;
 
-		if (this.Buffer != null) {
+		if (this.Buffer != undefined) {
 			this.free(this.Buffer);
 		}
 		var BufferSize = (this.width + 2) * (this.height + 2 );
-		var Buffer = new Array(); // (TPixel*)calloc(BufferSize,sizeof(TPixel));	
+		var Buffer = []; // (TPixel*)calloc(BufferSize,sizeof(TPixel));	
 		for (i = 0; i < BufferSize; i++) {
-			Buffer[i] = new Vector3(); //changed TPixel to vector2
+			Buffer[i] = new Vector3(); //changed TPixel to vector3
 		}
 
-		if (this.AddressY != null) {
+		if (this.AddressY != undefined) {
 			free(this.AddressY);
 		}
 
 		var AddressSize = (this.height + 2);
-		this.AddressY = new Array();
+		this.AddressY = [];
 		for (i = 0; i < AddressSize; i++)
 		{
-			this.AddressY[i]=(i * (this.Scope.x + 2));
+			this.AddressY[i]=(i * (this.width + 2));
 		}
 	
-		for (y=1; y<= this.Scope.y; y++) {		
+		for (y=1; y<= this.height; y++) {		
 			var Pixel=this.GetPixel(1,y);
-			for (x = 1; x <= this.Scope.x ; x++) {
+			for (x = 1; x <= this.width ; x++) {
 				Pixel.Weight=1;
 				Pixel++;
 			}
 		}	
 		
-		for (x = 0; x <= this.Scope.x +1; x++) {
+		for (x = 0; x <= this.width +1; x++) {
 			var Pixel = this.GetPixel(x,0);
 			Pixel.Weight=0;
-			Pixel = GetPixel(x, this.Scope.y + 1);
+			Pixel = GetPixel(x, this.height + 1);
 			Pixel.Weight=0;
 		}
 		
-		for (y = 0; y <= this.Scope.y+1; y++) {
+		for (y = 0; y <= this.height+1; y++) {
 			var Pixel = this.GetPixel(0,y);
 			Pixel.Weight=0;
-			Pixel = GetPixel(this.Scope.x + 1,y);
+			Pixel = GetPixel(this.width + 1,y);
 			Pixel.Weight=0;
 		}
 	}
+
 	/////////////////////////////////////////////////////////////////////////////
-	AllocCache() {
-		if (this.Cache != null) {
+    storeElem(xval, yval, age, array) {
+		array.push({x: xval, y: yval, age: age});
+    }
+
+	/////////////////////////////////////////////////////////////////////////////
+	AllocCache() { //WIP
+		if (this.Cache != undefined) {
 			free(this.Cache);
 		}
-		this.CacheSize=(this.width * this.height * this.CacheFactor);
-		this.Cache=new Array();
+		this.CacheSize = (this.width * this.height * this.CacheFactor);
+		this.Cache = {};
 		for (var i = 0; i < this.CacheSize; i++) {
-			var elem = new TElement();
-			elem.Age=-1;
-			elem.Pixel = NULL;
+			var elem = [];
+			//store x, y, age in elem array
+			this.storeElem(undefined, undefined, -1, elem);
 			this.Cache[i] = elem;
 		}
 	}
+
 	/////////////////////////////////////////////////////////////////////////////
-	AllocRendering() {
-		if (this.PixelsToSample != null)
+	storeSample(xval, yval, resample, array) {
+		array.push({x: xval, y: yval, resample: resample});
+	}
+
+	/////////////////////////////////////////////////////////////////////////////
+	AllocRendering() { //WIP
+		if (this.PixelsToSample != undefined)
 			free(this.PixelsToSample);
 		
-		this.PixelsToSample = new Array();
+		this.PixelsToSample = [];
 		for (var i = 0; i < this.CacheSize; i++) {
-			this.PixelsToSample[i]=new TSample();
+			var sample = [];
+			//allocating with x, y, bool resample in sample array
+			this.storeSample(undefined, undefined, false, sample);
+			this.PixelsToSample[i] = sample;
 		}
 		// TODO: samplecount?
 		// this.SampleCount = &(PixelsToSample[0]);		
@@ -195,7 +209,7 @@ export default class Driver {
 				y = this.getRandomIntInclusive(0, height);
 				this.storeCoordinate(x, y, coords);
 			}
-			//this.RequestSamples(0);		
+			this.RequestSamples(0);		
 			//this.AgeCache(this.AgeFactor);
 			//console.log("Cache usage: ", CacheUsage * 100.0);
 		//	Count++;
@@ -517,7 +531,7 @@ export default class Driver {
 
 		var Occurence = 0.0;
 		// TODO: sample count?
-		this.SampleCount=(PixelsToSample[0]);
+		this.SampleCount=(this.PixelsToSample[0]);
 		for (var y=1; y <= Scope.y; y++)
 		{		
 			if ((y % 2) == 0) {			
@@ -556,24 +570,24 @@ export default class Driver {
 		}		
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	RequestSamples(FrameCount) {	
+	RequestSamples(FrameCount) { //WIP
 
 		var index = 0;
 
 		if (FrameCount % 10 == 0)
-			console.log("Frame " + FrameCount + ": requesting " + (SampleCount - index)  + " samples");
+			console.log("Frame " + FrameCount + ": requesting " + (this.SampleCount - index)  + " samples");
 		
-		var RayDir = new TVector3D();	
-		var Sample = new TSample();
+		//var RayDir = new TVector3D();	
+		//var Sample = new TSample();
 
 		// TODO: AEye?
-		D3_VecCopy(Camera.Eye,AEye);
+		//D3_VecCopy(Camera.Eye,AEye);
 		
 		// TODO: sample count?
-		while (index < SampleCount) {
+		while (index < this.SampleCount) {
 
-			var Sample = PixelsToSample[index];
-			if (Sample.Resample === true)
+			var Sample = this.PixelsToSample[index];
+			if (Sample.resample === true)
 				Camera.ComputeShooting(Sample.Hit ,RayDir);
 			else
 				Camera.ComputeShooting(Sample.x, Sample.y, RayDir);
