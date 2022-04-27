@@ -8,10 +8,10 @@ const INFINITY = 1e8;
  * @class RayTracer
  */
 export default class RayTracer {
-    constructor(backgroundColor, scene) {
+    constructor(backgroundColor, scene, camera) {
         this.backgroundColor = backgroundColor;
         this.scene = scene;
-    
+		this.camera = camera;
     }
 
     trace(rayOrigin, rayDir, depth) {
@@ -108,24 +108,8 @@ export default class RayTracer {
         return coords;
     }
 
-    nextFrame(width, height, coords, driver){
-        driver.InitializeCache(width, height, coords);
-
-        /*driver.ReprojectFrame();
-
-        driver.DepthCulling();
-
-        driver.Interpolation();
-
-        driver.DirectSamples();
-
-        driver.RequestSamples();
-
-        driver.AgeCache();*/
-
-    }
-
-    render(width, height, startY, scanHeight, isFirstFrame, driver) {
+ 
+    render(width, height, startY, scanHeight, isFirstFrame) {
         //console.log(isFirstFrame);
         if(startY == undefined) {
             startY = 0;

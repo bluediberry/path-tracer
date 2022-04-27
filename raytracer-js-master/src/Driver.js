@@ -7,7 +7,7 @@
 /////////////////////////////////////////////////////////////////////////////
 export default class Driver {
 	// CCamera Temp,char HostAddress,int HostPort,int MaxSamplesPerFrame,int MaxRequests
-	constructor(width, height) {
+	constructor(width, height, raytracer, camera) {
 
 		this.width = width;
 		this.height = height;
@@ -59,6 +59,11 @@ export default class Driver {
 		this.FillHoles=false;
 
 		this.Priorities = new Array();
+
+		this.camera = camera;
+
+		this.rayTracer = this.rayTracer;
+
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	free (variable) {
@@ -85,10 +90,10 @@ export default class Driver {
 			this.free(this.Connection);
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	Prepare() {
-		//this.AllocBuffers(); //?
-		//this.AllocCache();
-		//this.AllocRendering();	
+	prepare() {
+		this.AllocBuffers();
+		this.AllocCache();
+		this.AllocRendering();	
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	AllocBuffers() {
@@ -596,6 +601,8 @@ export default class Driver {
 				Camera.ComputeShooting(Sample.x, Sample.y, RayDir);
 
 			AddRequest(Sample, RayDir);
+			// pedir ao raytracer o pixel para o valor da sample (nova)
+
 			index++;
 		}
 	}
@@ -641,67 +648,62 @@ export default class Driver {
 	// Frame drawing 
 	//
 	/////////////////////////////////////////////////////////////////////////////
-	ComputeReprojectionFrame(ColorBuffer /* TColor */ ) {
+	ComputeReprojectionFrame(colorBuffer /* TColor */ ) {
 		
-		var Index = 0;
-		for (var y=1; y <= Scope.y; y++) {	
+		for (var y=0; y < Scope.y; y++) {	
+			for (var x = 0; x < Scope.x; x++) {
+				var pixelIndex = this.AddressY[y] + x;
 
-			for (var x=1; x <= Scope.x ; x++) {
 				var Pixel = this.GetPixel(x, y);	
 				if (Pixel.Element != null) {
-					this.SetColor(ColorBuffer,Index,Pixel.Element.Color);
+					this.SetColor(colorBuffer, pixelIndex, Pixel.Element.Color);
 				}
 				else {
-					this.SetColor(ColorBuffer,Index);
+					this.SetColor(colorBuffer, pixelIndex);
 				}
-				Index += this.ColorComponents;
 			}
 			// Index+=ColorComponents* Scope->x ;
 		}
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	ComputeFrame(ColorBuffer /* TColor */) {
+	computeFrame(colorBuffer /* TColor */) {
 		
-		var Index = 0;
 		this.ToneMap.MapColors();
-		for (var y = 1; y <= Scope.y; y++) {
+		for (var y = 0; y < Scope.y; y++) {
+			for (var x = 0; x < Scope.x; x++) {
+				var pixelIndex = this.AddressY[y] + x
 
-			for (var x = 1; x <= Scope.x; x++) {
 				var Pixel = this.GetPixel(x, y);
-				this.SetColor(ColorBuffer,Index,Pixel.Color);							
-				Index += this.ColorComponents;
+				this.SetColor(colorBuffer, pixelIndex, Pixel.Color);
 			}				
 		}		
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	ComputePriorityFrame(ColorBuffer /* TColor */) {
+	computePriorityFrame(colorBuffer /* TColor */) {
 
-		var Index = 0; // 2* Scope->x * Scope->y*ColorComponents+ Scope->x *ColorComponents;
-		for (var y = 1; y <= Scope.y; y++) {
-
-			for (var x = 1; x <= Scope.x; x++) {
+		for (var y = 0; y < Scope.y; y++) {
+			for (var x = 0; x < Scope.x; x++) {
+				var pixelIndex = this.AddressY[y] + x
+				
 				var Pixel = this.GetPixel(x, y);
-				this.SetColor(ColorBuffer,Index,Pixel.Priority);						
-				Index += this.ColorComponents;	
+				this.SetColor(colorBuffer, pixelIndex, Pixel.Priority);
 			}
 		}		
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	ComputeSamplingFrame(ColorBuffer /* TColor */) {
-		var Index = 2 * this.Scope.x * this.Scope.y * this.ColorComponents;
+	computeSamplingFrame(colorBuffer /* TColor */) {
+		
+		for (var y = 0; y < Scope.y; y++) {
+			for (var x = 0; x < Scope.x; x++) {
+				var pixelIndex = this.AddressY[y] + x
 
-		for (var y = 1; y <= Scope.y; y++) {
-
-			for (var x = 1; x <= Scope.x; x++) {
 				var Pixel = this.GetPixel(x, y);
 				if (Pixel.Sampled == true)
-					SetColor(ColorBuffer,Index,255);
+					SetColor(colorBuffer, pixelIndex,255);
 				else
-					SetColor(ColorBuffer,Index,0);
+					SetColor(colorBuffer, pixelIndex,0);
 
-				Index += this.ColorComponents;
 			}		
-			Index += ColorComponents* this.Scope.x ;
 		}	
 	}	
 
@@ -725,44 +727,36 @@ export default class Driver {
 }
 
 	/////////////////////////////////////////////////////////////////////////////
-	SetColor(ColorBuffer, Index, R, G, B)
+	SetColor(colorBuffer, pixelIndex, r, g, b)
 {
-	ColorBuffer[Index] = R;
-	Index++;
-	ColorBuffer[Index] = G;
-	Index++;
-	ColorBuffer[Index] = B;
-	Index++;
+	colorBuffer[pixelIndex] =
+				(255 << 24) |	// alpha
+				(b << 16) |	// blue
+				(g << 8) |	// green
+				r;		// red
 }
 	/////////////////////////////////////////////////////////////////////////////
-	SetColor(ColorBuffer, Index, Value)
+	SetColor(colorBuffer, pixelIndex, value)
 {
-	ColorBuffer[Index] = Value;
-	Index++;
-	ColorBuffer[Index] = Value;
-	Index++;
-	ColorBuffer[Index] = Value;
-	Index++;
+		this.serColor(colorBuffer, value);
 }
 	/////////////////////////////////////////////////////////////////////////////
-	SetColor(ColorBuffer, Index, C)
+	SetColor(colorBuffer, pixelIndex, color)
 {
-	ColorBuffer[Index] = (TColor)(C.r);
-	Index++;
-	ColorBuffer[Index] = (TColor)(C.g);
-	Index++;
-	ColorBuffer[Index] = (TColor)(C.b);
-	Index++;
+		colorBuffer[pixelIndex] =
+			(255 << 24) |	// alpha
+			(color.b << 16) |	// blue
+			(color.g << 8) |	// green
+			color.r;		// red
 }
 	/////////////////////////////////////////////////////////////////////////////
-	SetColor(ColorBuffer, Index)
+	SetColor(colorBuffer, pixelIndex)
 {
-	ColorBuffer[Index] = 0;
-	Index++;
-	ColorBuffer[Index] = 0;
-	Index++;
-	ColorBuffer[Index] = 0;
-	Index++;
+		colorBuffer[pixelIndex] =
+			(255 << 24) |	// alpha
+			(0 << 16) |	// blue
+			(0 << 8) |	// green
+			0;		// red
 }
 	/////////////////////////////////////////////////////////////////////////////
 	AllocCacheElement(Pixel)
@@ -819,9 +813,9 @@ export default class Driver {
 }
 	/////////////////////////////////////////////////////////////////////////////
 	GetPixel(x, y)
-{
-	return (this.Buffer[AddressY[y] + x]);
-}
+	{
+		return (this.Buffer[AddressY[y] + x]);
+	}
 	/////////////////////////////////////////////////////////////////////////////
 	MarkForSample(Pixel, NextIndex, NextLine, x, y)
 {
@@ -853,5 +847,23 @@ export default class Driver {
 		(Pixel + NextLine).Priority += Half;
 	}
 }
+
+	nextFrame(width, height, coords, driver) {
+		this.InitializeCache(width, height, coords);
+
+		this.ReprojectFrame();
+
+		this.DepthCulling();
+
+		this.Interpolation();
+
+		this.DirectSamples();
+
+		this.RequestSamples();
+
+		this.AgeCache();
+
+	}
+
 
 }
