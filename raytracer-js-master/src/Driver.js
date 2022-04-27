@@ -3,6 +3,10 @@
  */
 
  import Vector3 from './Vector3.js'
+ import TPixel from './Pixel.js'
+ import TPixel2D from './Pixel2D.js'
+
+
 
 /////////////////////////////////////////////////////////////////////////////
 export default class Driver {
@@ -11,6 +15,7 @@ export default class Driver {
 
 		this.width = width;
 		this.height = height;
+		this.coords = [];
 
 		this.Cache = undefined;	
 
@@ -95,6 +100,13 @@ export default class Driver {
 		this.AllocCache();
 		this.AllocRendering();	
 	}
+
+	storePixel(xval, yval, age, resample, weight, array) {
+        //array.push(x);
+        //array.push(y);
+		array.push({x: xval, y: yval, age: age, resample: resample, weight: weight});
+    }
+
 	/////////////////////////////////////////////////////////////////////////////
 	AllocBuffers() {
 
@@ -103,43 +115,45 @@ export default class Driver {
 		if (this.Buffer != undefined) {
 			this.free(this.Buffer);
 		}
-		var BufferSize = (this.width + 2) * (this.height + 2 );
-		var Buffer = []; // (TPixel*)calloc(BufferSize,sizeof(TPixel));	
+		var BufferSize = (this.width + 2) * (this.height + 2);
+		this.Buffer = []; // (TPixel*)calloc(BufferSize,sizeof(TPixel));	
 		for (i = 0; i < BufferSize; i++) {
-			Buffer[i] = new Vector3(); //changed TPixel to vector3
+			this.Buffer[i] = new TPixel(); //created Pixel class
+			//this.storePixel(undefined, undefined, 0, false, 0, this.coords)
 		}
 
 		if (this.AddressY != undefined) {
 			free(this.AddressY);
 		}
 
-		var AddressSize = (this.height + 2);
+		var AddressSize = (this.height);
 		this.AddressY = [];
 		for (i = 0; i < AddressSize; i++)
 		{
-			this.AddressY[i]=(i * (this.width + 2));
+			this.AddressY[i] = (i * (this.width));
 		}
 	
-		for (y=1; y<= this.height; y++) {		
-			var Pixel=this.GetPixel(1,y);
+		for (y = 1; y <= this.height; y++) {	
+			//var Pixel = this.GetPixel(1,y);
+			var Pixel = this.GetPixel(1, y);
 			for (x = 1; x <= this.width ; x++) {
-				Pixel.Weight=1;
-				Pixel++;
+				Pixel.weight = 1;
+				//Pixel++;
 			}
 		}	
 		
-		for (x = 0; x <= this.width +1; x++) {
+		for (x = 0; x <= this.width + 1; x++) {
 			var Pixel = this.GetPixel(x,0);
-			Pixel.Weight=0;
-			Pixel = GetPixel(x, this.height + 1);
-			Pixel.Weight=0;
+			Pixel.weight = 0;
+			Pixel = this.GetPixel(x, this.height + 1);
+			Pixel.weight=0;
 		}
 		
 		for (y = 0; y <= this.height+1; y++) {
-			var Pixel = this.GetPixel(0,y);
-			Pixel.Weight=0;
-			Pixel = GetPixel(this.width + 1,y);
-			Pixel.Weight=0;
+			var Pixel = this.GetPixel(0, y);
+			Pixel.weight = 0;
+			Pixel = this.GetPixel(this.width + 1, y);
+			Pixel.weight = 0;
 		}
 	}
 
@@ -175,10 +189,10 @@ export default class Driver {
 		
 		this.PixelsToSample = [];
 		for (var i = 0; i < this.CacheSize; i++) {
-			var sample = [];
+			//var sample = [];
 			//allocating with x, y, bool resample in sample array
-			this.storeSample(undefined, undefined, false, sample);
-			this.PixelsToSample[i] = sample;
+			this.storeSample(undefined, undefined, false, this.PixelsToSample);
+			//this.PixelsToSample[i] = sample;
 		}
 		// TODO: samplecount?
 		// this.SampleCount = &(PixelsToSample[0]);		
@@ -207,23 +221,23 @@ export default class Driver {
 		var x = 0;
 		var y = 0;
 
-	while(CacheUsage < InitialFill) //slows down a lot
+	while(CacheUsage < InitialFill) //slows down a lot?
 		{
 			for(var i=0; i < this.MaximumSamplesPerFrame; i++){
 				x = this.getRandomIntInclusive(0, width);
 				y = this.getRandomIntInclusive(0, height);
 				//store x, y, age, resample, weight in coords array
 				// best way?
-				this.storeCoordinate(x, y, 0, true, 0, coords);
+				this.storeCoordinate(x, y, 0, true, 0, this.coords);
 			}
 			//this.RequestSamples(0);	//see	
 			this.AgeCache(this.AgeFactor, coords); //see
-			console.log("Cache usage: ", CacheUsage * 100.0);
+			//console.log("Cache usage: ", CacheUsage * 100.0);
 			Count++;
 			CacheUsage += 0.02;
 		}
 	
-		console.log(Count + " iterations to fill " + (InitialFill * 100.0) + "% of cache");
+		//console.log(Count + " iterations to fill " + (InitialFill * 100.0) + "% of cache");
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -245,22 +259,23 @@ export default class Driver {
 
 		// Reproject every existing cache element
 
-		var result = new Object();
-		result.new = new TPixel2D();
+		//var result = new Object();
+		//result.new = new TPixel2D();
+		var result = new TPixel2D();
 
 		for (var i=0; i < this.CacheSize; i++) {		
 			var Element = this.Cache[i];
 			Element.Pixel = null;
 
 			// TODO: add clear to TPixel2D
-			result.New.clear()
+			result.clear();
 			result.depth = 10000000000000.0;
-			if (this.Camera.ReprojectPixel(Element, result))
+			if (this.camera.reprojectPixel(Element, result))
 			{
-				if ((New.x>=1 ) && (New.x <= this.Scope.x ) && 
-					(New.y>=1 ) && (New.y <= this.Scope.y))
+				if ((result.x >= 1 ) && (result.x <= this.width ) && 
+					(result.y >= 1 ) && (result.y <= this.height))
 				{					
-					var Pixel = this.GetPixel(result.New.x, result.New.y);
+					var Pixel = this.GetPixel(result.x, result.y);
 					if (result.depth < Pixel.Depth) {
 						if (Pixel.Element != null) {
 							// It seems that the element' hit atached to
@@ -624,8 +639,8 @@ export default class Driver {
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	AgeCache(Step, coords) { //WIP
-		for(var i = 0; i < coords.length; i++){
-			coords[i].age += Step;
+		for(var i = 0; i < this.coords.length; i++){
+			this.coords[i].age += Step;
 		}
 		
 		/*for (var i=0; i < this.CacheSize; i++) {
@@ -814,7 +829,9 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	GetPixel(x, y)
 	{
-		return (this.Buffer[AddressY[y] + x]);
+		var pixelIndex = this.width*(this.height + 1) - (this.width - x)
+		//return (this.Buffer[pixelIndex]);
+		return (this.Buffer[pixelIndex]);
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	MarkForSample(Pixel, NextIndex, NextLine, x, y)

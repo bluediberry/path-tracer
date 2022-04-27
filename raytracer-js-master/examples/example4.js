@@ -65,8 +65,9 @@ var startTime = Date.now();
 
 // initialize buffer view 
 var colorDepth = 4;
-var buffer = new ArrayBuffer(width * scanHeight * colorDepth);
+var buffer = new ArrayBuffer(canvasWidth * canvasHeight * colorDepth);
 var colorbuffer = new Uint32Array(buffer);
+var frame = 0;
 
 // main cycle
 var resultDiv = document.getElementById("resultDiv");
@@ -77,10 +78,11 @@ setInterval(function () {
 	// compute frame data
 	driver.computeFrame(colorbuffer)
 
-	// copy   buffer to canvas
+	// copy buffer to canvas
 	var buf8 = new Uint8ClampedArray(buffer);
 	var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
 	imageData.data.set(buf8);
+	
 	// put in image
 	ctx.putImageData(imageData, 0, 0);
 
