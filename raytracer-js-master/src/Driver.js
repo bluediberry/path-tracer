@@ -5,6 +5,9 @@
  import Vector3 from './Vector3.js'
  import TPixel from './Pixel.js'
  import TPixel2D from './Pixel2D.js'
+ import Element from './Element.js'
+ import TRequests from './Requests.js'
+ import TSample from './Sample.js'
 
 
 
@@ -19,7 +22,7 @@ export default class Driver {
 
 		this.Cache = undefined;	
 
-		this.Buffer = undefined;	
+		this.Buffer = [];	
 		this.PixelsToSample = undefined;
 		this.AddressY = undefined;
 		
@@ -30,6 +33,7 @@ export default class Driver {
 		this.Threshold=0;
 
 		this.MaximumSamplesPerFrame = width*height/16;
+		this.MaxRequestsBuffer = 900;
 		
 		this.InterpolationRandom = 5;
 		this.InterpolationZero = 20;
@@ -48,10 +52,10 @@ export default class Driver {
 		//this.ToneMap=new CToneMapping(this,true);
 		//this.Connection=new CConnection();        	
 
-		/*this.Requests=new Array();
-		for (var i=0; i<MAX_REQUEST_BUFFER; i++) {
-			this.Requests[i] = new TRequest();
-		}*/
+		this.Requests = [];
+		for (var i = 0; i < this.MaxRequestsBuffer; i++) {
+			this.Requests[i] = new TRequests();
+		}
 
 		/*this.ASocket=Connection.GetSocket();
 		this.AStart=ReqStart;
@@ -65,9 +69,10 @@ export default class Driver {
 
 		this.Priorities = new Array();
 
+		this.raytracer = raytracer;
+
 		this.camera = camera;
 
-		this.rayTracer = this.rayTracer;
 
 	}
 	/////////////////////////////////////////////////////////////////////////////
@@ -115,7 +120,7 @@ export default class Driver {
 		if (this.Buffer != undefined) {
 			this.free(this.Buffer);
 		}
-		var BufferSize = (this.width + 2) * (this.height + 2);
+		var BufferSize = (this.width + 2) * (this.height + 2); // why +2
 		this.Buffer = []; // (TPixel*)calloc(BufferSize,sizeof(TPixel));	
 		for (i = 0; i < BufferSize; i++) {
 			this.Buffer[i] = new TPixel(); //created Pixel class
@@ -158,28 +163,21 @@ export default class Driver {
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
-    storeElem(xval, yval, age, array) {
-		array.push({x: xval, y: yval, age: age});
-    }
-
-	/////////////////////////////////////////////////////////////////////////////
 	AllocCache() { //WIP
 		if (this.Cache != undefined) {
 			free(this.Cache);
 		}
 		this.CacheSize = (this.width * this.height * this.CacheFactor);
-		this.Cache = {};
+		this.Cache = [];
+		var elem = new Element();
 		for (var i = 0; i < this.CacheSize; i++) {
-			var elem = [];
 			//store x, y, age in elem array
-			this.storeElem(undefined, undefined, -1, elem);
+			//this.storeElem(undefined, undefined, -1, elem);
+			elem.age = -1;
+			elem.pixel = null;
+
 			this.Cache[i] = elem;
 		}
-	}
-
-	/////////////////////////////////////////////////////////////////////////////
-	storeSample(xval, yval, resample, array) {
-		array.push({x: xval, y: yval, resample: resample});
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -188,21 +186,24 @@ export default class Driver {
 			free(this.PixelsToSample);
 		
 		this.PixelsToSample = [];
+		var sample = new TSample();
 		for (var i = 0; i < this.CacheSize; i++) {
-			//var sample = [];
-			//allocating with x, y, bool resample in sample array
-			this.storeSample(undefined, undefined, false, this.PixelsToSample);
-			//this.PixelsToSample[i] = sample;
+			this.PixelsToSample[i] = sample;
 		}
 		// TODO: samplecount?
-		// this.SampleCount = &(PixelsToSample[0]);		
+		this.SampleCount = this.PixelsToSample.length;		
 	}
 
 /////////////////////////////////////////////////////////////////////////////
-    storeCoordinate(xval, yval, age, resample, weight, array) {
+    storeCoordinate(xval, yval, zval, age, resample, weight, array) {
         //array.push(x);
         //array.push(y);
-		array.push({x: xval, y: yval, age: age, resample: resample, weight: weight});
+		array.push({x: xval, 
+					y: yval, 
+					z: zval,
+					age: age, 
+					resample: resample, 
+					weight: weight});
     }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -213,7 +214,7 @@ export default class Driver {
       }
 
 /////////////////////////////////////////////////////////////////////////////
-	InitializeCache(width, height, coords) { //WIP
+	InitializeCache(width, height) { //WIP
 	
 		var Count = 0;	
 		var CacheUsage = 0.0; 
@@ -228,9 +229,11 @@ export default class Driver {
 				y = this.getRandomIntInclusive(0, height);
 				//store x, y, age, resample, weight in coords array
 				// best way?
-				this.storeCoordinate(x, y, 0, true, 0, this.coords);
+				//this.storeCoordinate(x, y, 0, 0, true, 0, this.coords);
+				this.PixelsToSample[i].x = x;
+				this.PixelsToSample[i].y = y;
 			}
-			//this.RequestSamples(0);	//see	
+			this.RequestSamples(0);	//see	
 			this.AgeCache(this.AgeFactor, coords); //see
 			//console.log("Cache usage: ", CacheUsage * 100.0);
 			Count++;
@@ -259,18 +262,20 @@ export default class Driver {
 
 		// Reproject every existing cache element
 
-		//var result = new Object();
-		//result.new = new TPixel2D();
-		var result = new TPixel2D();
+		var result = new Object();
+		result.new = new TPixel2D();
+		//var result = new TPixel2D();
 
 		for (var i=0; i < this.CacheSize; i++) {		
-			var Element = this.Cache[i];
-			Element.Pixel = null;
+			var elem = this.Cache[i];
+			//var element = new Element();
+			//elem = this.Cache[i];
+			elem.pixel = null;
 
 			// TODO: add clear to TPixel2D
-			result.clear();
+			result.new.clear();
 			result.depth = 10000000000000.0;
-			if (this.camera.reprojectPixel(Element, result))
+			if (this.camera.reprojectPixel(elem, result))
 			{
 				if ((result.x >= 1 ) && (result.x <= this.width ) && 
 					(result.y >= 1 ) && (result.y <= this.height))
@@ -282,7 +287,7 @@ export default class Driver {
 							// this pixel is behind the current element' hit
 							// So prematurelly age attached element 
 
-							Pixel.Element.Age += AgeFactor;
+							Pixel.Element.Age += this.AgeFactor;
 							// And dump it
 							this.FreeCacheElement(Pixel.Element);
 						}
@@ -293,19 +298,19 @@ export default class Driver {
 					else {
 						// Element's hit is behind closest hit
 						// So prematurelly age attached element 
-						Pixel.Element.Age += AgeFactor;
+						Pixel.Element.Age += this.AgeFactor;
 					}
 				}
 				else {
 					// Element reprojected outside frame
 					// Prematurelly age it ?
-					Element.Age += (AgeFactor * 2);
+					Element.Age += (this.AgeFactor * 2);
 				}
 			}
 			else {
 				// Element reprojected outside frame and in oposite direction
 				// Prematurelly age it ?
-				Element.Age += (AgeFactor * 4);
+				Element.Age += (this.AgeFactor * 4);
 			}
 		}
 	}
@@ -313,9 +318,9 @@ export default class Driver {
 	DepthCulling() {
 
 		var DepthMin=0.9, DepthMax=1.1;
-		for (var y=1; y<= this.Scope.y; y++)
+		for (var y=1; y <= this.height; y++)
 		{		
-			for (var x=1; x<= this.Scope.x ; x++)
+			for (var x=1; x<= this.width; x++)
 			{
 				var CenterPixel = this.GetPixel(x,y);			
 				if (CenterPixel.Element != null)
@@ -348,7 +353,7 @@ export default class Driver {
 							// If neighborhood is recent than centerpixel 
 							// ignore the depth cull: treat as if no point
 							// is mapped to this pixel
-							CenterPixel.Element.Age += (AgeFactor * 10);
+							CenterPixel.Element.Age += (this.AgeFactor * 10);
 							this.FreeCacheElement(CenterPixel.Element);																
 						}					
 					}
@@ -382,9 +387,9 @@ export default class Driver {
 		// Now that depth are consistent
 		// atribute colors to the pixels
 			
-		for (var y=1; y<= this.Scope.y; y++) {		
+		for (var y=1; y <= this.height; y++) {		
 			var Pixel = this.GetPixel(1,y);
-			for (var x=1; x<= this.Scope.x ; x++) {
+			for (var x=1; x<= this.width; x++) {
 				if (Pixel.Element != null)
 					this.ColorCopy(Pixel.Element.Color, Pixel.Color);
 
@@ -395,9 +400,9 @@ export default class Driver {
 		// Interpolate color values 
 		// to aproximate empty pixels
 		
-		for (var y=1; y<= this.Scope.y; y++) {
+		for (var y=1; y<= this.height; y++) {
 			
-			for (var x=1; x<= this.Scope.x ; x++) {			
+			for (var x=1; x<= this.width; x++) {			
 			
 				var CenterPixel = this.GetPixel(x, y);
 				if (CenterPixel.Element==null) {
@@ -405,15 +410,15 @@ export default class Driver {
 					var Weight = 0.0;
 					var ColorItems = 0;
 					var ColorWeight = 0.0;
-					var Color = new TColor3();				
-					this.ColorNull(Color);
+					var color = [{r: 0, g: 0, b: 0}];				
+					//this.ColorNull(Color);
 
 					var Pixel;
 					
 					Pixel = this.GetPixel(x-1,y-1);
 					Weight += Pixel.Weight;
 					if (Pixel.Element != null) {
-						this.ColorAddMult(Pixel.Color, Corner, Color);
+						this.ColorAddMult(Pixel.color, Corner, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Corner;
 						ColorItems++;
@@ -421,7 +426,7 @@ export default class Driver {
 					Pixel = this.GetPixel( x ,y-1);
 					Weight += Pixel.Weight;
 					if (Pixel.Element != null) {
-						this.ColorAddMult(Pixel.Color,Colinear,Color);
+						this.ColorAddMult(Pixel.color, Colinear, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Colinear;
 						ColorItems++;
@@ -429,7 +434,7 @@ export default class Driver {
 					Pixel= this.GetPixel(x+1,y-1);
 					Weight += Pixel.Weight;
 					if (Pixel.Element != null) {				
-						this.ColorAddMult(Pixel.Color,Corner,Color);
+						this.ColorAddMult(Pixel.color, Corner, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Corner;
 						ColorItems++;
@@ -437,7 +442,7 @@ export default class Driver {
 					Pixel = this.GetPixel(x-1, y );
 					Weight+= Pixel.Weight;
 					if (Pixel.Element != null) {
-						this.ColorAddMult(Pixel.Color,Colinear,Color);
+						this.ColorAddMult(Pixel.color, Colinear, color);
 						Age+=Pixel.Element.Age;
 						ColorWeight += Colinear;
 						ColorItems++;
@@ -445,7 +450,7 @@ export default class Driver {
 					Pixel += this.GetPixel(x+1, y);
 					Weight+=Pixel.Weight;
 					if (Pixel.Element != null) {
-						this.ColorAddMult(Pixel.Color,Colinear,Color);
+						this.ColorAddMult(Pixel.color, Colinear, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Colinear;
 						ColorItems++;
@@ -454,7 +459,7 @@ export default class Driver {
 					Pixel= this.GetPixel(x-1,y+1);
 					Weight += Pixel.Weight;
 					if (Pixel.Element != null) {
-						this.ColorAddMult(Pixel.Color,Corner,Color);
+						this.ColorAddMult(Pixel.color, Corner, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Corner;
 						ColorItems++;
@@ -462,7 +467,7 @@ export default class Driver {
 					Pixel= this.GetPixel( x ,y+1);
 					Weight+=Pixel.Weight;
 					if (Pixel.Element != null) {
-						this.ColorAddMult(Pixel.Color,Colinear,Color);
+						this.ColorAddMult(Pixel.color, Colinear, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Colinear;
 						ColorItems++;
@@ -470,16 +475,16 @@ export default class Driver {
 					Pixel = this.GetPixel(x+1,y+1);
 					Weight += Pixel.Weight;
 					if (Pixel.Element != null) {					
-						this.ColorAddMult(Pixel.Color,Corner,Color);
+						this.ColorAddMult(Pixel.color, Corner, color);
 						Age += Pixel.Element.Age;
 						ColorWeight += Corner;
 						ColorItems++;										
 					}														
 					
 					if (ColorItems > 0) {
-						CenterPixel.Color.r=Color.r/ColorWeight;
-						CenterPixel.Color.g=Color.g/ColorWeight;
-						CenterPixel.Color.b=Color.b/ColorWeight;
+						CenterPixel.color.r = color.r/ColorWeight;
+						CenterPixel.color.g = color.g/ColorWeight;
+						CenterPixel.color.b = color.b/ColorWeight;
 
 						// Get a priority based on how many of 
 						// their immediate neighbors had a point 
@@ -493,16 +498,16 @@ export default class Driver {
 						this.NumberOfSamples++;
 					}
 					else {
-						CenterPixel.Color.r = 0.0;
-						CenterPixel.Color.g = 0.0;
-						CenterPixel.Color.b = 0.0;					
+						CenterPixel.color.r = 0.0;
+						CenterPixel.color.g = 0.0;
+						CenterPixel.color.b = 0.0;					
 
 						// A pixel without a point and whose neighbors 
 						// also do not have a point are given the
 						// maximum priority (255)
 
 						CenterPixel.Priority = 255;
-						this.Priorities[URGENT][CenterPixel.Priority]++;
+						//this.Priorities[URGENT][CenterPixel.Priority]++;
 						this.TotalPriority += CenterPixel.Priority;					
 						this.NumberOfSamples++;
 					}				
@@ -526,14 +531,15 @@ export default class Driver {
 		}
 		
 		// By this time all pixels are mapped to the render cache		
-		Completeness = 100.0 * (Completeness / (this.Scope.x * this.Scope.y));
+		Completeness = 100.0 * (Completeness / (this.width * this.height));
 		console.log("Image completeness is: " + Completeness);
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	DirectSamples() {
 		
 		var Threshold = 255;
-		var Count = this.Priorities[URGENT][255];	
+		//var Count = this.Priorities[URGENT][255];	
+		var Count = 255;	
 		while (Count < this.MaximumSamplesPerFrame)	
 		{
 			var Test = Priorities[INTERPOLATED][Threshold] + Priorities[SAMPLED][Threshold];
@@ -596,46 +602,62 @@ export default class Driver {
 	RequestSamples(FrameCount) { //WIP
 
 		var index = 0;
+		var colorDepth = 4;
+        //var buffer = new ArrayBuffer(width*scanHeight*colorDepth);
+        //var bufferView = new Uint32Array(buffer);
+        var invWidth = 1/this.width;
+        var invHeight = 1/this.height;
+        var fov = 30;
+        var aspectRatio = this.width/this.height;
+        var angle = Math.tan(Math.PI * 0.5 * fov / 180);
 
 		if (FrameCount % 10 == 0)
 			console.log("Frame " + FrameCount + ": requesting " + (this.SampleCount - index)  + " samples");
 		
-		//var RayDir = new TVector3D();	
+		var rayDir = new Vector3(0,0,0);	
 		//var Sample = new TSample();
 
 		// TODO: AEye?
 		//D3_VecCopy(Camera.Eye,AEye);
 		
 		// TODO: sample count?
-		while (index < this.SampleCount) {
+		for(var i = 0; i < this.SampleCount; i++) {
 
-			var Sample = this.PixelsToSample[index];
-			if (Sample.resample === true)
-				Camera.ComputeShooting(Sample.Hit ,RayDir);
-			else
-				Camera.ComputeShooting(Sample.x, Sample.y, RayDir);
+			var sample = this.PixelsToSample[i];
+			if (sample.resample){
+				//this.camera.ComputeShooting(Sample.hit ,RayDir);
+				rayDir = sample.hit;
+				rayDir.normalize();
+			}	
+			else {
+				var xx = (2 * ((sample.x + 0.5) * invWidth) - 1) * angle * aspectRatio;
+                var yy = (1 - 2 * ((sample.y + 0.5) * invHeight)) * angle;
+                rayDir = new Vector3(xx, yy, -1);
+                rayDir.normalize();
+			}
+				//this.camera.ComputeShooting(Sample.x, Sample.y, RayDir);
+				//rayDir = sample.x.subtract(sample.y);
 
-			AddRequest(Sample, RayDir);
+			this.AddRequest(sample, rayDir, i);
 			// pedir ao raytracer o pixel para o valor da sample (nova)
-
-			index++;
+		//	this.rayTracer.request();
 		}
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	AddRequest(Sample /* TSample */, RayDir /* TVector3D */) { //WIP
-	
-		this.Requests[this.ReqCurrent].x=RayDir.x;
-		this.Requests[this.ReqCurrent].y=RayDir.y;
-		this.Requests[this.ReqCurrent].z=RayDir.z;
-		this.Requests[this.ReqCurrent].Resample=Sample.Resample;
-		this.Requests[this.ReqCurrent].Color.r=0.0;
-		this.Requests[this.ReqCurrent].Color.g=0.0;
-		this.Requests[this.ReqCurrent].Color.b=0.0;
+	AddRequest(sample /* TSample */, rayDir /* TVector3D */, i) { //WIP
 
-		if (this.ReqCurrent < MAX_REQUEST_BUFFER - 1)
+		this.Requests[i].x = rayDir.x;
+		this.Requests[i].y = rayDir.y;
+		this.Requests[i].z = rayDir.z;
+		this.Requests[i].resample = sample.resample;
+		this.Requests[i].color.r = 0.0;
+		this.Requests[i].color.g = 0.0;
+		this.Requests[i].color.b = 0.0;
+
+		/*if (this.ReqCurrent < this.MaxRequestsBuffer - 1)
 			this.ReqCurrent++;
 		else
-			this.ReqCurrent = 0;
+			this.ReqCurrent = 0;*/
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	AgeCache(Step, coords) { //WIP
@@ -868,7 +890,7 @@ export default class Driver {
 	nextFrame(width, height, coords, driver) {
 		this.InitializeCache(width, height, coords);
 
-		this.ReprojectFrame();
+		/*this.ReprojectFrame();
 
 		this.DepthCulling();
 
@@ -878,7 +900,7 @@ export default class Driver {
 
 		this.RequestSamples();
 
-		this.AgeCache();
+		this.AgeCache();*/
 
 	}
 

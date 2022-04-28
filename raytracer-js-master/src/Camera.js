@@ -15,6 +15,11 @@ export default class Camera {
 		this.dir = dirVec.normalize()// subtracao e normalizacao de to-from
 		this.almost_zero = 1.0E-08;
 		this.max_real = 3.402823466E+38;
+
+		//eye??
+		this.eye = new Vector3();
+		this.ViewDirNorm = new Vector3();
+
 	}
 
 
@@ -28,9 +33,10 @@ export default class Camera {
 	var distance, t = undefined;
 	var depth, d;
 
-	element.hit.subtract(temp);				// VP=P - V
+	//D3_VecSub(Element->Hit,Eye,Temp);
+	temp = element.hit.subtract(this.eye);				// VP=P - V
 
-	if (ViewDirNorm.dotProduct(temp) < this.almost_zero)
+	if (this.dir.dotProduct(temp) < this.almost_zero)
 	{
 		// Point is behind view direction
 

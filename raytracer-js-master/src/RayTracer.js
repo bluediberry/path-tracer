@@ -95,7 +95,7 @@ export default class RayTracer {
 
 
 
-    getCoords(width, height, coords, isFirstFrame, driver){
+    getCoords(width, height, coords, isFirstFrame){
         //var driver = new Driver(width, height);
 
         if(isFirstFrame == 0){
@@ -135,16 +135,16 @@ export default class RayTracer {
         var rayOrigin = new Vector3(0, 0, 0);
         var pixelIndex = 0;
         var coords = [];
-        this.getCoords(width, height, coords, isFirstFrame, driver);
+       // this.getCoords(width, height, coords, isFirstFrame);
         var x = 0;
         var y = 0;
 
         // trace rays
-        // for (var y=startY; y<startY+scanHeight; ++y) {
-          //  for (var x=0; x<width; ++x, ++pixelIndex) {
-             for (var i = 0; i < coords.length; i++) {
-                x = coords[i].x;
-                y = coords[i].y;
+         for (var y=startY; y<startY+scanHeight; ++y) {
+           for (var x=0; x<width; ++x, ++pixelIndex) {
+             //for (var i = 0; i < coords.length; i++) {
+               // x = coords[i].x;
+               // y = coords[i].y;
                 
                 var pixelIndex = width*(y - startY) - (width - x);
 
@@ -170,7 +170,7 @@ export default class RayTracer {
                     (b << 16) |	// blue
                     (g <<  8) |	// green
                     r;		// red
-           // }
+            }
        // }
         }
         return buffer;

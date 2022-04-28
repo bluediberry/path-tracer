@@ -3,6 +3,8 @@
  */
 
 import Element from './Element.js'
+import Color from './Color.js'
+
 
 export default class TPixel{
 	constructor() { 
@@ -10,7 +12,7 @@ export default class TPixel{
         this.weight = undefined;
         this.sampled = undefined;
         this.depth = undefined;
-        this.color = [].push({r: undefined, g: undefined, b: undefined});
+        this.color = new Color();
         this.priority = undefined;
         
         //element?

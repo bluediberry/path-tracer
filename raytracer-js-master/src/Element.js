@@ -7,7 +7,7 @@ export default class Element {
         this.hit = new Vector3();
         this.normal = new Vector3();
         this.age = undefined;
-        //this.pixel = undefined;
+        this.pixel = undefined;
         this.locked = undefined;
     }
 }
