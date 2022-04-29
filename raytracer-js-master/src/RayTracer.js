@@ -1,5 +1,6 @@
 import Driver from './Driver.js';
 import Vector3 from './Vector3.js'
+import Color from './Color.js'
 
 const MAX_RAY_DEPTH = 1;
 const INFINITY = 1e8;
@@ -94,6 +95,21 @@ export default class RayTracer {
     }
 
 
+    requestPixel(rayDir, color){
+
+        var rayOrigin = new Vector3(0, 0, 0);
+        // trace
+        var pixelColor = this.trace(rayOrigin, rayDir, 0);
+
+        pixelColor.x = Math.min(1, pixelColor.x);
+        pixelColor.y = Math.min(1, pixelColor.y);
+        pixelColor.z = Math.min(1, pixelColor.z);
+
+        // convert pixel to bytes
+        color.r = Math.round(pixelColor.x * 255);
+        color.g = Math.round(pixelColor.y * 255);
+        color.b = Math.round(pixelColor.z * 255);	
+    }
 
     getCoords(width, height, coords, isFirstFrame){
         //var driver = new Driver(width, height);
@@ -108,7 +124,8 @@ export default class RayTracer {
         return coords;
     }
 
- 
+
+
     render(width, height, startY, scanHeight, isFirstFrame) {
         //console.log(isFirstFrame);
         if(startY == undefined) {

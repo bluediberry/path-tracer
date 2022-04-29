@@ -8,6 +8,7 @@
  import Element from './Element.js'
  import TRequests from './Requests.js'
  import TSample from './Sample.js'
+import Color from './Color.js'
 
 
 
@@ -51,7 +52,7 @@ export default class Driver {
 
 		//this.ToneMap=new CToneMapping(this,true);
 		//this.Connection=new CConnection();        	
-
+		this.ReqCurrent = 0
 		this.Requests = [];
 		for (var i = 0; i < this.MaxRequestsBuffer; i++) {
 			this.Requests[i] = new TRequests();
@@ -234,7 +235,7 @@ export default class Driver {
 				this.PixelsToSample[i].y = y;
 			}
 			this.RequestSamples(0);	//see	
-			this.AgeCache(this.AgeFactor, coords); //see
+			this.AgeCache(this.AgeFactor); //see
 			//console.log("Cache usage: ", CacheUsage * 100.0);
 			Count++;
 			CacheUsage += 0.02;
@@ -246,9 +247,9 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	ResetBuffers(Changes) {
 
-		for (var y=1; y <= this.Scope.y; y++)
+		for (var y=1; y <= this.this.height; y++)
 		{		
-			for (var x = 1; x <= this.Scope.x ; x++)
+			for (var x = 1; x <= this.this.width ; x++)
 			{
 				var Pixel = this.GetPixel(x, y);
 				Pixel.Depth = DepthThreshold;
@@ -549,7 +550,7 @@ export default class Driver {
 			}				
 		}	
 
-		var CxPlus2 = this.Scope.x + 2;	
+		var CxPlus2 = this.this.width + 2;	
 		var SizeFactor = 1.0;
 		if (Threshold == 255)
 		{
@@ -561,11 +562,11 @@ export default class Driver {
 		var Occurence = 0.0;
 		// TODO: sample count?
 		this.SampleCount=(this.PixelsToSample[0]);
-		for (var y=1; y <= Scope.y; y++)
+		for (var y=1; y <= this.height; y++)
 		{		
 			if ((y % 2) == 0) {			
 
-				for (var x=1; x <= Scope.x ; x++) {				
+				for (var x=1; x <= this.width ; x++) {				
 					var Pixel = this.GetPixel(x, y);
 					if (Pixel.Priority >= Threshold) {
 						if (Occurence >= SizeFactor) {
@@ -581,7 +582,7 @@ export default class Driver {
 				}			
 			}
 			else {
-				for (x = Scope.x ; x > 0; x--) {
+				for (x = this.width ; x > 0; x--) {
 					var Pixel = this.GetPixel(x, y);
 					if (Pixel.Priority >= Threshold) {
 						if (Occurence >= SizeFactor) {
@@ -614,7 +615,7 @@ export default class Driver {
 		if (FrameCount % 10 == 0)
 			console.log("Frame " + FrameCount + ": requesting " + (this.SampleCount - index)  + " samples");
 		
-		var rayDir = new Vector3(0,0,0);	
+		var rayDir = [];	
 		//var Sample = new TSample();
 
 		// TODO: AEye?
@@ -638,31 +639,36 @@ export default class Driver {
 				//this.camera.ComputeShooting(Sample.x, Sample.y, RayDir);
 				//rayDir = sample.x.subtract(sample.y);
 
-			this.AddRequest(sample, rayDir, i);
+			this.AddRequest(sample, rayDir);
 			// pedir ao raytracer o pixel para o valor da sample (nova)
-		//	this.rayTracer.request();
+			var color = new Color();
+			this.raytracer.requestPixel(rayDir, color);
+			this.Requests[this.ReqCurrent].color.r = color.r;
+			this.Requests[this.ReqCurrent].color.g = color.g;
+			this.Requests[this.ReqCurrent].color.b = color.b;
+
 		}
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	AddRequest(sample /* TSample */, rayDir /* TVector3D */, i) { //WIP
+	AddRequest(sample /* TSample */, rayDir /* TVector3D */) { //WIP
 
-		this.Requests[i].x = rayDir.x;
-		this.Requests[i].y = rayDir.y;
-		this.Requests[i].z = rayDir.z;
-		this.Requests[i].resample = sample.resample;
-		this.Requests[i].color.r = 0.0;
-		this.Requests[i].color.g = 0.0;
-		this.Requests[i].color.b = 0.0;
+		this.Requests[this.ReqCurrent].x = rayDir.x;
+		this.Requests[this.ReqCurrent].y = rayDir.y;
+		this.Requests[this.ReqCurrent].z = rayDir.z;
+		this.Requests[this.ReqCurrent].resample = sample.resample;
+		this.Requests[this.ReqCurrent].color.r = 0.0;
+		this.Requests[this.ReqCurrent].color.g = 0.0;
+		this.Requests[this.ReqCurrent].color.b = 0.0;
 
-		/*if (this.ReqCurrent < this.MaxRequestsBuffer - 1)
+		if (this.ReqCurrent < this.MaxRequestsBuffer - 1)
 			this.ReqCurrent++;
 		else
-			this.ReqCurrent = 0;*/
+			this.ReqCurrent = 0;
 	}
 	/////////////////////////////////////////////////////////////////////////////
-	AgeCache(Step, coords) { //WIP
-		for(var i = 0; i < this.coords.length; i++){
-			this.coords[i].age += Step;
+	AgeCache(Step) { //WIP
+		for(var i = 0; i < this.CacheSize; i++){
+			this.Cache[i].age += Step;
 		}
 		
 		/*for (var i=0; i < this.CacheSize; i++) {
@@ -687,8 +693,8 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	ComputeReprojectionFrame(colorBuffer /* TColor */ ) {
 		
-		for (var y=0; y < Scope.y; y++) {	
-			for (var x = 0; x < Scope.x; x++) {
+		for (var y=0; y < this.height; y++) {	
+			for (var x = 0; x < this.width; x++) {
 				var pixelIndex = this.AddressY[y] + x;
 
 				var Pixel = this.GetPixel(x, y);	
@@ -705,9 +711,9 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	computeFrame(colorBuffer /* TColor */) {
 		
-		this.ToneMap.MapColors();
-		for (var y = 0; y < Scope.y; y++) {
-			for (var x = 0; x < Scope.x; x++) {
+		//this.ToneMap.MapColors();
+		for (var y = 0; y < this.height; y++) {
+			for (var x = 0; x < this.width; x++) {
 				var pixelIndex = this.AddressY[y] + x
 
 				var Pixel = this.GetPixel(x, y);
@@ -718,8 +724,8 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	computePriorityFrame(colorBuffer /* TColor */) {
 
-		for (var y = 0; y < Scope.y; y++) {
-			for (var x = 0; x < Scope.x; x++) {
+		for (var y = 0; y < this.height; y++) {
+			for (var x = 0; x < this.width; x++) {
 				var pixelIndex = this.AddressY[y] + x
 				
 				var Pixel = this.GetPixel(x, y);
@@ -730,8 +736,8 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	computeSamplingFrame(colorBuffer /* TColor */) {
 		
-		for (var y = 0; y < Scope.y; y++) {
-			for (var x = 0; x < Scope.x; x++) {
+		for (var y = 0; y < this.height; y++) {
+			for (var x = 0; x < this.width; x++) {
 				var pixelIndex = this.AddressY[y] + x
 
 				var Pixel = this.GetPixel(x, y);
@@ -775,7 +781,7 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	SetColor(colorBuffer, pixelIndex, value)
 {
-		this.serColor(colorBuffer, value);
+		this.setColor(colorBuffer, value);
 }
 	/////////////////////////////////////////////////////////////////////////////
 	SetColor(colorBuffer, pixelIndex, color)

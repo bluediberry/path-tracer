@@ -2,8 +2,8 @@
 
  export default class Color{
      constructor() { 
-         this.r = undefined;
-         this.g = undefined;
-         this.b = undefined;
+         this.r = 0.0;
+         this.g = 0.0;
+         this.b = 0.0;
      }
  }
