@@ -95,9 +95,10 @@ export default class RayTracer {
     }
 
 
-    requestPixel(rayDir, color){
+    requestPixel(rayDir){
 
         var rayOrigin = new Vector3(0, 0, 0);
+        var color = new Color();
         // trace
         var pixelColor = this.trace(rayOrigin, rayDir, 0);
 
@@ -109,6 +110,8 @@ export default class RayTracer {
         color.r = Math.round(pixelColor.x * 255);
         color.g = Math.round(pixelColor.y * 255);
         color.b = Math.round(pixelColor.z * 255);	
+
+        return color;
     }
 
     getCoords(width, height, coords, isFirstFrame){
@@ -153,7 +156,7 @@ export default class RayTracer {
         var pixelIndex = 0;
         var coords = [];
        // this.getCoords(width, height, coords, isFirstFrame);
-        var x = 0;
+        var x = 0; 
         var y = 0;
 
         // trace rays

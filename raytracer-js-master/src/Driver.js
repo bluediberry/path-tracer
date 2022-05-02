@@ -604,8 +604,8 @@ export default class Driver {
 
 		var index = 0;
 		var colorDepth = 4;
-        //var buffer = new ArrayBuffer(width*scanHeight*colorDepth);
-        //var bufferView = new Uint32Array(buffer);
+        var buffer = new ArrayBuffer(this.width*this.height*colorDepth);
+        var bufferView = new Uint32Array(buffer);
         var invWidth = 1/this.width;
         var invHeight = 1/this.height;
         var fov = 30;
@@ -641,11 +641,17 @@ export default class Driver {
 
 			this.AddRequest(sample, rayDir);
 			// pedir ao raytracer o pixel para o valor da sample (nova)
-			var color = new Color();
-			this.raytracer.requestPixel(rayDir, color);
+			var color = this.raytracer.requestPixel(rayDir, color);
 			this.Requests[this.ReqCurrent].color.r = color.r;
 			this.Requests[this.ReqCurrent].color.g = color.g;
 			this.Requests[this.ReqCurrent].color.b = color.b;
+			//this.computeFrame(color);
+			var pixelIndex = this.width*(sample.y + 1) - (this.width - sample.x);
+			bufferView[pixelIndex] =
+			(255   << 24) |	// alpha
+			(color.b << 16) |	// blue
+			(color.g <<  8) |	// green
+			color.r;		// red
 
 		}
 	}
@@ -695,7 +701,8 @@ export default class Driver {
 		
 		for (var y=0; y < this.height; y++) {	
 			for (var x = 0; x < this.width; x++) {
-				var pixelIndex = this.AddressY[y] + x;
+				//var pixelIndex = this.AddressY[y] + x;
+				var pixelIndex = this.width*(y + 1) - (this.width - x);
 
 				var Pixel = this.GetPixel(x, y);	
 				if (Pixel.Element != null) {
@@ -714,10 +721,11 @@ export default class Driver {
 		//this.ToneMap.MapColors();
 		for (var y = 0; y < this.height; y++) {
 			for (var x = 0; x < this.width; x++) {
-				var pixelIndex = this.AddressY[y] + x
+				//var pixelIndex = this.AddressY[y] + x;
+				var pixelIndex = this.width*(y + 1) - (this.width - x);
 
 				var Pixel = this.GetPixel(x, y);
-				this.SetColor(colorBuffer, pixelIndex, Pixel.Color);
+				this.SetColor(colorBuffer, pixelIndex, Pixel.color);
 			}				
 		}		
 	}
@@ -726,8 +734,9 @@ export default class Driver {
 
 		for (var y = 0; y < this.height; y++) {
 			for (var x = 0; x < this.width; x++) {
-				var pixelIndex = this.AddressY[y] + x
-				
+				//var pixelIndex = this.AddressY[y] + x;
+				var pixelIndex = this.width*(y + 1) - (this.width - x);
+
 				var Pixel = this.GetPixel(x, y);
 				this.SetColor(colorBuffer, pixelIndex, Pixel.Priority);
 			}
@@ -738,7 +747,8 @@ export default class Driver {
 		
 		for (var y = 0; y < this.height; y++) {
 			for (var x = 0; x < this.width; x++) {
-				var pixelIndex = this.AddressY[y] + x
+				//var pixelIndex = this.AddressY[y] + x;
+				var pixelIndex = this.width*(y + 1) - (this.width - x);
 
 				var Pixel = this.GetPixel(x, y);
 				if (Pixel.Sampled == true)
@@ -857,8 +867,8 @@ export default class Driver {
 	/////////////////////////////////////////////////////////////////////////////
 	GetPixel(x, y)
 	{
-		var pixelIndex = this.width*(this.height + 1) - (this.width - x)
-		//return (this.Buffer[pixelIndex]);
+		var pixelIndex = this.width*(y + 1) - (this.width - x);
+		//var pixelIndex = this.AddressY[y] + x;
 		return (this.Buffer[pixelIndex]);
 	}
 	/////////////////////////////////////////////////////////////////////////////
