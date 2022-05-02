@@ -70,4 +70,18 @@ export default class Vector3 {
         this.z = -this.z;
         return this;
     }
+
+    copy(otherVector) {
+        otherVector.x = this.x;
+        otherVector.y = this.y;
+        otherVector.z = this.z;
+        return this;
+    }
+
+    copyc(otherVector) {
+        otherVector.r = this.r;
+        otherVector.g = this.g;
+        otherVector.b = this.b;
+        return this;
+    }
 }
