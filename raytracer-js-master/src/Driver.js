@@ -282,36 +282,36 @@ export default class Driver {
 					(result.y >= 1 ) && (result.y <= this.height))
 				{					
 					var Pixel = this.GetPixel(result.x, result.y);
-					if (result.depth < Pixel.Depth) {
-						if (Pixel.Element != null) {
+					if (result.depth < Pixel.depth) {
+						if (Pixel.element != null) {
 							// It seems that the element' hit atached to
 							// this pixel is behind the current element' hit
 							// So prematurelly age attached element 
 
-							Pixel.Element.Age += this.AgeFactor;
+							Pixel.element.age += this.AgeFactor;
 							// And dump it
-							this.FreeCacheElement(Pixel.Element);
+							this.FreeCacheElement(Pixel, elem);
 						}
 
-						this.EstablishLink(Pixel,Element);
-						Pixel.Depth = Depth;
+						this.EstablishLink(Pixel, elem);
+						Pixel.depth = Depth;
 					}
 					else {
 						// Element's hit is behind closest hit
 						// So prematurelly age attached element 
-						Pixel.Element.Age += this.AgeFactor;
+						Pixel.element.age += this.AgeFactor;
 					}
 				}
 				else {
 					// Element reprojected outside frame
 					// Prematurelly age it ?
-					Element.Age += (this.AgeFactor * 2);
+					elem.age += (this.AgeFactor * 2);
 				}
 			}
 			else {
 				// Element reprojected outside frame and in oposite direction
 				// Prematurelly age it ?
-				Element.Age += (this.AgeFactor * 4);
+				elem.age += (this.AgeFactor * 4);
 			}
 		}
 	}
@@ -393,6 +393,7 @@ export default class Driver {
 			for (var x = 1; x <= this.width; x++) {
 				if (Pixel.element != null)
 					//this.ColorCopy(Pixel.element.color, Pixel.color);
+					Pixel.color = Pixel.element.color;
 
 				Pixel++;
 			}
@@ -650,12 +651,12 @@ export default class Driver {
 			this.Requests[this.ReqCurrent].color.g = color.g;
 			this.Requests[this.ReqCurrent].color.b = color.b;
 			//this.computeFrame(color);
-			var pixelIndex = this.width*(sample.y + 1) - (this.width - sample.x);
+			/*var pixelIndex = this.width*(sample.y + 1) - (this.width - sample.x);
 			bufferView[pixelIndex] =
 			(255   << 24) |	// alpha
 			(color.b << 16) |	// blue
 			(color.g <<  8) |	// green
-			color.r;		// red
+			color.r;		// red*/
 
 		}
 	}
