@@ -6,31 +6,41 @@ import Driver from "./src/Driver.js";
 import Camera from "./src/Camera.js";
 import OrbitControls from "./js/OrbitControls.js";
 import PointerLockControls from "./src/controls.js";
-//import RenderPlanner from '../src/RenderPlanner.js'
+
+const scene = new THREE.Scene();
+
+//renderer.setSize( window.innerWidth, window.innerHeight );
+//document.body.appendChild( renderer.domElement );
+
+const geometry = new THREE.BoxGeometry();
+const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+const cube = new THREE.Mesh( geometry, material );
+scene.add( cube );
 
 
-// create scene
-var scene = new Scene2();
 
+var isMoving = false;
 // get canvas
 var canvas = document.getElementById("resultCanvas");
 canvas.addEventListener("click", function (event) {
   //console.log("x: " + event.offsetX + ", y: " + event.offsetY);
+  isMoving = true;
 });
+
 var ctx = canvas.getContext("2d");
 
 // create camera
-var from = new Vector3(0, 50, 50);
-var to = new Vector3(0,0,0);
-// up vector is hardcoded into camera update position
+var position = new Vector3(0, 1, 10);
 var camera = new Camera(
-  	/* from */ from,
-  	/* to */ to,
-  	/* fov */ 30,
-  	/* width */ canvas.width,
-  	/* height */ canvas.height
+  	position,
+	new Vector3(0, 0, -1),
+  	45,
+  	canvas.width,
+  	canvas.height
 );
 
+camera.prepare();
+position.z = 5;
 // create raytracer
 var engine = new Raytracer(scene, camera);
 
@@ -61,55 +71,17 @@ var fps = 0;
 var prevTime = Date.now();
 var startTime = Date.now();
 
-var bufferPieces = [];
-var workerCount = 8;
-//var renderPlanner = new RenderPlanner(workerCount, scene, backgroundColor, canvas.width, canvas.height);
-
-/*renderPlanner.onUpdateReceived = function(sectionStart, sectionHeight, buf8)
-{
-    // collect buffer for a single screen update
-    bufferPieces.push({
-        "buffer": buf8,
-        "start": sectionStart,
-        "height": sectionHeight
-    });
-
-    if(renderPlanner.isRunning() == false)
-    {
-        // rendering is completed update screen!
-        for(var i=0; i<bufferPieces.length; i++) {
-            var piece = bufferPieces[i];
-
-            var imageData = ctx.getImageData(0, piece.start, canvasWidth, piece.height);
-            imageData.data.set(piece.buffer);
-            ctx.putImageData(imageData, 0, piece.start);
-        }
-
-        bufferPieces = [];
-
-        window.requestAnimationFrame(animate);
-
-    }
-};*/
-
-/*function startRendering() {
-    // start
-    renderPlanner.initialize();
-    renderPlanner.start();
-}*/
-
 function animate() {
-  from.x += 0.1;
-
   const time = Date.now();
   const delta = (time - prevTime) / 1000;
   prevTime = time;
 
   window.requestAnimationFrame(animate);
 
-  // camera update requires to be 
-	// done PRIOR to calculation
-  camera.updatePosition(from, to);
+  if(isMoving){
+    //frameIndex = 0;
+    isMoving = false;
+  }
 
   //controls.update(delta);
 
@@ -117,31 +89,35 @@ function animate() {
   driver.nextFrame(frameIndex);
 
   // compute frame data
-  driver.computeReprojectionFrame(colorbuffer);
-  
+  driver.computeFrame(colorbuffer);
+  //ctx.imageSmoothingEnabled = true;
   // copy  buffer to canvas
   var buf8 = new Uint8ClampedArray(buffer);
   var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   imageData.data.set(buf8);
-
   // put in image
   ctx.putImageData(imageData, 0, 0);
 
   //position.x -= 0.05;
 
+  
   //console.log(position);
-  // increase fps and display
+  camera.updatePosition(position);
   frameIndex++;
   fps++; 
+  
+
 }
 
 window.setInterval(function () {
   // display statistics
+  //var fps = Math.floor(frameIndex / ((Date.now() - prevTime) / 1000));
   if (Date.now() - startTime > 1000) {
     statsDiv.innerHTML = "fps: " + fps;
     startTime = Date.now();
     fps = 0;
 	}
+  //statsDiv.innerHTML = "fps: " + fps;
 }, 100);
 
 window.requestAnimationFrame(animate);

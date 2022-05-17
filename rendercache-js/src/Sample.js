@@ -2,14 +2,7 @@ import Color from "./Color.js";
 
 export default class Sample {
   constructor() {
-    this.pixel = null;
-    this.color = null;
-	  this.hit = null;
-	  this.normalDir = null;
-    this.rayDir = null;
-	  this.age = -1;
-    this.resample = false;
-	  this.inUse = false;
+    this.clear();
   }
 
   clear() {

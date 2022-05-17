@@ -1,12 +1,14 @@
 
 export default class Color {
   constructor() {
-    this.clear();
+    this.r = 0;
+    this.g = 0;
+    this.b = 0;
   }
   clear() {
-    this.r = null;
-    this.g = null;
-    this.b = null;
+    this.r = 0;
+    this.g = 0;
+    this.b = 0;
   }
 
   copy(r, g, b) {

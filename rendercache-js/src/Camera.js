@@ -1,4 +1,6 @@
 import Vector3 from "./Vector3.js";
+import Pixel from "./Pixel.js";
+
 
 const ALMOST_ZERO = 0.000000001;
 const MAX_REAL = +3.402823466e38;
@@ -12,21 +14,19 @@ export default class Camera {
     this.fov = fov;
     this.scope = { x: width, y: height };
     this.halfScope = { x: 0.5 * width, y: 0.5 * height };
-    this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
-    this.cam.position.set(from.x, from.y, from.z);
-    this.cam.lookAt(to.x, to.y, to.z);
-
     this.raycaster = new THREE.Raycaster();
     this.pixel = new THREE.Vector2();
+    this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
+    this.cam.position.set(from.x, from.y, from.z);
+    this.updatePosition(from, to);
   }
 
-  updatePosition(from) {
-	this.from = from.clone()
-	this.cam.position.set(this.from.x, this.from.y, this.from.z);
-	this.prepare();
-  }
-
-  prepare() {
+  updatePosition(from, to) {
+    this.from = from.clone();
+    this.to = to.clone();
+    this.cam.position.set(this.from.x, this.from.y, this.from.z);
+    this.cam.lookAt(this.to.x, this.to.y, this.to.z);
+    this.cam.up.set(0, 1, 0);
     this.cam.updateProjectionMatrix();
   }
 
@@ -41,14 +41,8 @@ export default class Camera {
   computeDirToXY(x, y) {
     // calculate pixel coords in normalized device coordinates
     // (-1 to +1) for both components
-    var fov = 30;
-    var aspectRatio = this.scope.x/this.scope.y;
-    var angle = Math.tan(Math.PI * 0.5 * this.fov / 180);
-
-    //this.pixel.x = (x/ this.scope.x) * 2 - 1;
-    //this.pixel.y = (y / this.scope.y) * 2 - 1;
-    this.pixel.x = ((x / this.scope.x) * 2 - 1);
-    this.pixel.y = ((y / this.scope.y) * 2 - 1);
+    this.pixel.x = (x / this.scope.x) * 2 - 1;
+    this.pixel.y = (y / this.scope.y) * 2 - 1;
     this.raycaster.setFromCamera(this.pixel, this.cam);
     return new Vector3(
       this.raycaster.ray.direction.x,
@@ -73,8 +67,6 @@ export default class Camera {
     result.x = Math.round(vector.x);
     result.y = Math.round(vector.y);
     result.depth = depth;
-
-
 
     if(result.depth === 0){
       return false;

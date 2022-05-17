@@ -20,11 +20,11 @@ export default class Scene2 extends Scene {
     this.add(
       new Sphere(
         new Vector3(0, 0, -20),
-        5,
+        4,
         new Material(new Vector3(1.0, 0.32, 0.36), 1, 0.5, new Vector3())
       )
     );
-    /*this.add(
+    this.add(
       new Sphere(
         new Vector3(5, -1, -15),
         2,
@@ -44,7 +44,7 @@ export default class Scene2 extends Scene {
         3,
         new Material(new Vector3(0.9, 0.9, 0.9), 1, 0, new Vector3())
       )
-    );*/
+    );
 
     // add light
     this.add(
@@ -59,13 +59,6 @@ export default class Scene2 extends Scene {
         new Vector3(0, 10, 10),
         3,
         new Material(new Vector3(), 0, 0, new Vector3(1,1,1))
-      )
-    );
-    this.add(
-      new Sphere(
-        new Vector3(0, 30, 30),
-        1,
-        new Material(new Vector3(), 0, 0, new Vector3(0.5, 0.5, 0.5))
       )
     );
 

@@ -1,7 +1,7 @@
 /**
  * @class Vector3
  */
-export default class Matrix3 {
+ export default class Matrix3 {
   constructor() {
     this.nullify();
   }

@@ -21,7 +21,7 @@ export default class Raytracer {
         var elementsLen = elements.length;
 
         var hitInfo = {t0:INFINITY, t1:INFINITY};
-        for(var i = 0; i < elementsLen; i++) {
+        for(var i=0; i<elementsLen; i++) {
             hitInfo.t0 = INFINITY;
             hitInfo.t1 = INFINITY;
             var el = elements[i];
@@ -56,12 +56,12 @@ export default class Raytracer {
         var bias = 1e-4;
         var inside = false;
         if (sample.rayDir.dot(intersectionNormal) > 0) {
-            intersectionNormal = intersectionNormal.revert();
+            intersectionNormal = intersectionNormal.invert();
             inside = true;
         }
 
         var mat = element.getMaterial();
-        for(var i = 0; i < elementsLen; i++)
+        for(var i=0; i<elementsLen; i++)
         {
             var el = elements[i];
             var lightMat = el.getMaterial();
@@ -73,7 +73,7 @@ export default class Raytracer {
                 lightDirection = lightDirection.normalize();
                 var lightHitInfo = {t0:INFINITY, t1:INFINITY};
 
-                for(var j = 0; j < elementsLen; j++)
+                for(var j=0; j<elementsLen; j++)
                 {
                     if(i != j) {
                        if(elements[j].intersect(intersectionPoint.add(intersectionNormal.multiply(bias)), lightDirection, lightHitInfo)) {

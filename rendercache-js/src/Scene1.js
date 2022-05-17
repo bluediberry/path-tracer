@@ -41,13 +41,7 @@ export default class Scene1 extends Scene {
       )
     );
 
-    this.add(
-      new Sphere(
-        new Vector3(-20, 10, 10),
-        1,
-        new Material(new Vector3(), 0, 0, new Vector3(0.5, 0.5, 0.5))
-      )
-    );
+
 
     // configure background
     this.backgroundColor = new Vector3(0.1, 0.1, 0.1);
