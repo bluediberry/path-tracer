@@ -2,20 +2,20 @@
 * @class RenderPlanner
 */
 export default class RenderPlanner {
-    constructor(jobCount, scene, backgroundColor, width, height) {
+    constructor(jobCount, scene) {
 
         this.jobCount = jobCount;
         this.scene = scene;
-        this.backgroundColor = backgroundColor;
-        this.width = width;
-        this.height = height;
+        //this.backgroundColor = backgroundColor;
+        //this.width = width;
+        //this.height = height;
 
         this.running = false;
         this.completedJobs = 0;
 
-        this.onUpdateReceived = function(sectionStart, sectionHeight, buf8){};
+        //this.onUpdateReceived = function(sectionStart, sectionHeight, buf8){};
 
-        this.serializeScene();
+        //this.serializeScene();
 
         this.workers = [];
         for(var i=0; i<this.jobCount; i++)
@@ -60,26 +60,6 @@ export default class RenderPlanner {
 
     prepareWorker(index, rendererWorker)
     {
-        // send scene to workers
-        rendererWorker.postMessage({
-            "action": "elements",
-            "data": this.serializedElements
-        });
-
-        // set background color
-        rendererWorker.postMessage({
-            "action": "backgroundColor",
-            "data": [this.backgroundColor.x, this.backgroundColor.y, this.backgroundColor.z]
-        });
-
-        var sectionHeight = Math.floor(this.height/this.jobCount);
-        var sectionStart = Math.floor(index*sectionHeight);
-
-        // set ray tracer dimensions
-        rendererWorker.postMessage({
-            "action": "dimensions",
-            "data": [this.width, this.height, sectionStart, sectionHeight]
-        });
 
         // add listeners
         rendererWorker.onmessage = function(e) {

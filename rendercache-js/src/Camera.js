@@ -1,7 +1,6 @@
 import Vector3 from "./Vector3.js";
 import Pixel from "./Pixel.js";
 
-
 const ALMOST_ZERO = 0.000000001;
 const MAX_REAL = +3.402823466e38;
 const MIN_REAL = -3.402823466e38;
@@ -9,26 +8,25 @@ const PiOver180 = 1.74532925199433e-2;
 
 export default class Camera {
   constructor(from, to, fov, width, height) {
-    this.from = from;
-    this.to = to;
-    this.fov = fov;
     this.scope = { x: width, y: height };
+    this.from = from;
     this.halfScope = { x: 0.5 * width, y: 0.5 * height };
-    this.raycaster = new THREE.Raycaster();
-    this.pixel = new THREE.Vector2();
+	  this.raycaster = new THREE.Raycaster();
+  	this.pixel = new THREE.Vector2();
     this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
-    this.cam.position.set(from.x, from.y, from.z);
-    this.updatePosition(from, to);
+    //this.cam.position.set(from.x, from.y, from.z);
+  	this.updatePosition(from, to);
   }
 
   updatePosition(from, to) {
-    this.from = from.clone();
-    this.to = to.clone();
-    this.cam.position.set(this.from.x, this.from.y, this.from.z);
-    this.cam.lookAt(this.to.x, this.to.y, this.to.z);
-    this.cam.up.set(0, 1, 0);
-    this.cam.updateProjectionMatrix();
+	this.from = from.clone()
+	this.to = to.clone()
+	this.cam.position.set(this.from.x, this.from.y, this.from.z);
+	this.cam.lookAt(this.to.x, this.to.y, this.to.z);
+	this.cam.up.set(0, 1, 0);
+	this.cam.updateProjectionMatrix();
   }
+
 
   computeDirToPixel(sample) {
     sample.rayDir = this.computeDirToXY(sample.pixel.x, sample.pixel.y);

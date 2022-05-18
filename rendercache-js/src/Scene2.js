@@ -10,7 +10,7 @@ export default class Scene2 extends Scene {
     // add background sphere
     this.add(
       new Sphere(
-        new Vector3(0.0, -10004, -20),
+        new Vector3(0.0, -10005, -20),
         10000,
         new Material(new Vector3(0.2, 0.2, 0.2), 0, 0, new Vector3())
       )
@@ -62,6 +62,6 @@ export default class Scene2 extends Scene {
       )
     );
 
-    this.backgroundColor = new Vector3(0.5, 0.5, 1.0);
+    this.backgroundColor = new Vector3(0.1, 0.1, 0.1);
   }
 }

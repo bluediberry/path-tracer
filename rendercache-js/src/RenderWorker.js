@@ -1,71 +1,57 @@
 import RayTracer from './RayTracer.js'
-import Scene from './Scene.js'
+import Scene from './Scene2.js'
 import Sphere from './Sphere.js'
 import Vector3 from './Vector3.js'
-import Driver from '../src/Driver.js'
+import Camera from './Camera.js'
+import Sample from './Sample.js'
 
 var messageHandler = undefined;
 
-onmessage = function(e) {
-    if(messageHandler)
+self.onmessage = function(e) {
+    /*if(messageHandler)
     {
         messageHandler(e);
-    }
+    }*/
+// create camera
+var from = new Vector3(0, 50, 50);
+var to = new Vector3(0,0,0);
+// up vector is hardcoded into camera update position
+var camera = new Camera(
+  	/* from */ from,
+  	/* to */ to,
+  	/* fov */ 30,
+  	/* width */ 480,
+  	/* height */ 360
+);
+    var scene = new Scene();
+    // create raytracer
+    var engine = new RayTracer(scene, camera);
+
+    var request = e.data.request;
+
+    request = request.doRaytracing(engine, camera, request);
+
+    self.postMessage(request);
 };
 
-var scene = new Scene();
-var backgroundColor = new Vector3(0, 0, 0);
-var rendererWidth = 0;
-var rendererHeight = 0;
-var startY = 0;
-var scanHeight = 0;
+/*function rendererMessageHandler(e) {
+    var engine = e.data.engine;
+    var camera = e.data.camera;
+    var request = e.data.request;
 
-function rendererMessageHandler(e) {
-    var action = e.data.action;
-    var data = e.data.data;
+    startRendering(engine, camera, request);
 
-    if(action == "elements") {
-        scene.clear();
-        var elements = data;
-        for(var i=0; i<elements.length; i++) {
-            scene.add(Sphere.deserialize(elements[i]));
-        }
-    }
-    else if(action == "backgroundColor")
-    {
-        backgroundColor.x = data[0];
-        backgroundColor.y = data[1];
-        backgroundColor.z = data[2];
-    }
-    else if(action == "dimensions")
-    {
-        rendererWidth = data[0];
-        rendererHeight = data[1];
-        startY = data[2];
-        scanHeight = data[3];
-    }
-    else if(action == "render")
-    {
-        startRendering();
-    }
 }
 messageHandler = rendererMessageHandler;
-var isFirstFrame = 0;
 
-function startRendering()
+function startRendering(engine, camera, request)
 {
-    var startTime = new Date();
-    var rayTracer = new RayTracer(backgroundColor, scene);
-    //driver
-    var driver = new Driver(rendererWidth, rendererHeight);
-    var buffer = rayTracer.render(rendererWidth, rendererHeight, startY, scanHeight, isFirstFrame, driver);
-    var endTime = new Date();
-    isFirstFrame = 1;
+    camera = new Camera();
+  
+  // create raytracer
+  engine = new RayTracer(Scene, camera);
 
-    // send result buffer
-    var buf8  = new Uint8ClampedArray(buffer);
-    postMessage({
-        "action": "result",
-        "data": buf8
-    });
-}
+    request.doRaytracing(engine, camera, request);
+
+    self.postMessage(request);
+}*/

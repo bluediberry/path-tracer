@@ -2,7 +2,14 @@ import Color from "./Color.js";
 
 export default class Sample {
   constructor() {
-    this.clear();
+    this.pixel = null;
+    this.color = null;
+	  this.hit = null;
+	  this.normalDir = null;
+    this.rayDir = null;
+	  this.age = 0;
+    this.resample = false;
+  	this.inUse = false;  
   }
 
   clear() {
@@ -17,7 +24,7 @@ export default class Sample {
 
     if (this.pixel !== null) {
 		this.pixel.element = null;
-	}
+	  }
   }
 
   attach(pixel) {
@@ -25,8 +32,8 @@ export default class Sample {
     pixel.element = this;
   }
 
-  doRaytracing(raytracer, from) {
-    var c = raytracer.trace(from, this, 0);
+  doRaytracing(raytracer, from, request) {
+    var c = raytracer.trace(from, request, 0);
 
     // vector to color
     this.color = new Color();
@@ -47,5 +54,7 @@ export default class Sample {
 
 	// sample is in use
     this.inUse = true;
+
+    return request;
   }
 }

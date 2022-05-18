@@ -8,9 +8,18 @@ import OrbitControls from "./js/OrbitControls.js";
 import PointerLockControls from "./src/controls.js";
 //import RenderPlanner from '../src/RenderPlanner.js'
 
+const DEGREES_TO_RADIANS = Math.PI / 180.0;
 
 // create scene
 var scene = new Scene2();
+var raytrace = false;
+
+//document.getElementById("demo").onclick = function() {myFunction()};
+
+function myFunction() {
+  //document.getElementById("demo").innerHTML = "YOU CLICKED ME!";
+  //raytrace = true;
+}
 
 // get canvas
 var canvas = document.getElementById("resultCanvas");
@@ -34,8 +43,13 @@ var camera = new Camera(
 // create raytracer
 var engine = new Raytracer(scene, camera);
 
+var ratio = 3;
+if(raytrace)
+{
+  ratio = 1;
+}
 // create driver
-var driver = new Driver(engine, camera);
+var driver = new Driver(engine, camera, ratio);
 driver.prepare(false);
 
 // initialize buffer view
@@ -60,88 +74,64 @@ var frameIndex = 0;
 var fps = 0;
 var prevTime = Date.now();
 var startTime = Date.now();
-
+var angle = 0;
 var bufferPieces = [];
 var workerCount = 8;
-//var renderPlanner = new RenderPlanner(workerCount, scene, backgroundColor, canvas.width, canvas.height);
 
-/*renderPlanner.onUpdateReceived = function(sectionStart, sectionHeight, buf8)
+function animate() 
 {
-    // collect buffer for a single screen update
-    bufferPieces.push({
-        "buffer": buf8,
-        "start": sectionStart,
-        "height": sectionHeight
-    });
 
-    if(renderPlanner.isRunning() == false)
-    {
-        // rendering is completed update screen!
-        for(var i=0; i<bufferPieces.length; i++) {
-            var piece = bufferPieces[i];
-
-            var imageData = ctx.getImageData(0, piece.start, canvasWidth, piece.height);
-            imageData.data.set(piece.buffer);
-            ctx.putImageData(imageData, 0, piece.start);
-        }
-
-        bufferPieces = [];
-
-        window.requestAnimationFrame(animate);
-
-    }
-};*/
-
-/*function startRendering() {
-    // start
-    renderPlanner.initialize();
-    renderPlanner.start();
-}*/
-
-function animate() {
-  from.x += 0.1;
-
-  const time = Date.now();
-  const delta = (time - prevTime) / 1000;
-  prevTime = time;
-
-  window.requestAnimationFrame(animate);
-
-  // camera update requires to be 
+	// camera update requires to be 
 	// done PRIOR to calculation
-  camera.updatePosition(from, to);
+	camera.updatePosition(from, to);
 
-  //controls.update(delta);
+  //controls.update();
+	// this is just a minor location update
+	//from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
+  //from.y = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
+	//from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
+	//angle += 1;
 
-  // perform everything for the next frame
-  driver.nextFrame(frameIndex);
-
-  // compute frame data
-  driver.computeReprojectionFrame(colorbuffer);
   
-  // copy  buffer to canvas
-  var buf8 = new Uint8ClampedArray(buffer);
-  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  imageData.data.set(buf8);
+  if(raytrace)
+  {
+  // perform everything for the next frame
+  driver.nextFrame1SPP(frameIndex);
+  }
+  else 
+  {
+	// perform every single step in the rendercache
+	// pipeline for the next frame
+  driver.nextFrame(frameIndex);
+  }
 
-  // put in image
-  ctx.putImageData(imageData, 0, 0);
 
-  //position.x -= 0.05;
+	// compute frame data
+	driver.getColorFrame(colorbuffer);
 
-  //console.log(position);
+	// copy  buffer to canvas
+	var buf8 = new Uint8ClampedArray(buffer);
+	// var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	imageData.data.set(buf8);
+	
+	// put in image
+	ctx.putImageData(imageData, 0, 0);
+
   // increase fps and display
   frameIndex++;
   fps++; 
-}
-
-window.setInterval(function () {
   // display statistics
   if (Date.now() - startTime > 1000) {
     statsDiv.innerHTML = "fps: " + fps;
     startTime = Date.now();
     fps = 0;
 	}
-}, 100);
+}
 
-window.requestAnimationFrame(animate);
+// main program
+var frameIndex = 0;
+var prevTime = Date.now();
+var start = Date.now();
+var angle = 0;
+window.setInterval(animate,5);
+
