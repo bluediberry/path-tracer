@@ -32,7 +32,22 @@ export default class Sample {
     pixel.element = this;
   }
 
+  serialize(request) {
+    var request = request;
+
+    return {
+        "request": request,
+    };
+}
+
+static deserialize(data) {
+    var request = data.request;
+
+    return request;
+}
+
   doRaytracing(raytracer, from, request) {
+    
     var c = raytracer.trace(from, request, 0);
 
     // vector to color

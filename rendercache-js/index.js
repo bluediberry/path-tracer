@@ -1,21 +1,23 @@
-import Raytracer from "./src/Raytracer.js";
+//import Raytracer from "./src/Raytracer.js";
+// @ts-ignore
 import Scene2 from "./src/Scene2.js";
-import Scene3 from "./src/Scene3.js";
 import Vector3 from "./src/Vector3.js";
 import Driver from "./src/Driver.js";
 import Camera from "./src/Camera.js";
 import OrbitControls from "./js/OrbitControls.js";
-import PointerLockControls from "./src/controls.js";
+// @ts-ignore
+//import PointerLockControls from "./src/controls.js";
 //import RenderPlanner from '../src/RenderPlanner.js'
 
 const DEGREES_TO_RADIANS = Math.PI / 180.0;
 
 // create scene
-var scene = new Scene2();
+//var scene = new Scene2();
 var raytrace = false;
 
 //document.getElementById("demo").onclick = function() {myFunction()};
 
+// @ts-ignore
 function myFunction() {
   //document.getElementById("demo").innerHTML = "YOU CLICKED ME!";
   //raytrace = true;
@@ -23,9 +25,11 @@ function myFunction() {
 
 // get canvas
 var canvas = document.getElementById("resultCanvas");
+// @ts-ignore
 canvas.addEventListener("click", function (event) {
   //console.log("x: " + event.offsetX + ", y: " + event.offsetY);
 });
+// @ts-ignore
 var ctx = canvas.getContext("2d");
 
 // create camera
@@ -36,29 +40,36 @@ var camera = new Camera(
   	/* from */ from,
   	/* to */ to,
   	/* fov */ 30,
+    // @ts-ignore
   	/* width */ canvas.width,
+    // @ts-ignore
   	/* height */ canvas.height
 );
 
 // create raytracer
-var engine = new Raytracer(scene, camera);
+//var engine = new Raytracer(scene, camera);
 
-var ratio = 3;
+var ratio = 128;
 if(raytrace)
 {
   ratio = 1;
 }
+
+var worker = new Worker("./src/RenderWorker.js", {type: 'module'});
+
 // create driver
-var driver = new Driver(engine, camera, ratio);
+var driver = new Driver(camera, ratio);
 driver.prepare(false);
 
 // initialize buffer view
 var colorDepth = 4;
+// @ts-ignore
 var buffer = new ArrayBuffer(canvas.width * canvas.height * colorDepth);
 var colorbuffer = new Uint32Array(buffer);
 
 // image data
 var statsDiv = document.getElementById("resultDiv");
+// @ts-ignore
 var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
 // interaction
@@ -72,10 +83,13 @@ controls.autoRotate = false;
 // main cycle
 var frameIndex = 0;
 var fps = 0;
+// @ts-ignore
 var prevTime = Date.now();
 var startTime = Date.now();
 var angle = 0;
+// @ts-ignore
 var bufferPieces = [];
+// @ts-ignore
 var workerCount = 8;
 
 function animate() 
@@ -87,10 +101,10 @@ function animate()
 
   //controls.update();
 	// this is just a minor location update
-	//from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
+	from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
   //from.y = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
-	//from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
-	//angle += 1;
+	from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
+	angle += 5;
 
   
   if(raytrace)
@@ -102,12 +116,12 @@ function animate()
   {
 	// perform every single step in the rendercache
 	// pipeline for the next frame
-  driver.nextFrame(frameIndex);
+  driver.nextFrame(frameIndex, fps);
   }
 
 
 	// compute frame data
-	driver.getColorFrame(colorbuffer);
+	driver.getReprojectionFrame(colorbuffer);
 
 	// copy  buffer to canvas
 	var buf8 = new Uint8ClampedArray(buffer);
@@ -130,7 +144,9 @@ function animate()
 
 // main program
 var frameIndex = 0;
+// @ts-ignore
 var prevTime = Date.now();
+// @ts-ignore
 var start = Date.now();
 var angle = 0;
 window.setInterval(animate,5);

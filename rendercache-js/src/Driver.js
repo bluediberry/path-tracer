@@ -2,17 +2,20 @@ import Sample from "./Sample.js";
 import Pixel from "./Pixel.js";
 import Color from "./Color.js";
 import Vector3 from "./Vector3.js";
+import Scene from "./Scene2.js";
+import RayTracer from "./Raytracer.js";
+
 
 const INTERPOLATED = 0;
 const URGENT = 1;
 const SAMPLED = 2;
 
 export default class Driver {
-  constructor(engine, camera, ratio) {
+  constructor(camera, ratio) {
     this.test = false;
     this.camera = camera;
-    this.engine = engine;
-
+    this.scene = new Scene();
+    this.engine = new RayTracer(this.scene, camera);
     this.cache = null;
     this.buffer = null;
     this.addressY = null;
@@ -74,7 +77,11 @@ export default class Driver {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
     }*/
 
-    this.worker = new Worker("../src/RenderWorker.js", {type: 'module'});
+    //this.worker = new Worker("./RenderWorker.js", {type: 'module'});
+
+    this.rows = [];
+    this.startTime = Date.now();
+    this.runTime = Date.now();;
   }
 
   prepare(isTest) {
@@ -91,7 +98,7 @@ export default class Driver {
 		this.statistics.cacheUsage = 0.0;	  
   	}
 
-  nextFrame(frameIndex) {
+  nextFrame(frameIndex, fps) {
     if (this.test) {
       this.initializeCacheWithEntireFrame();
     } else {
@@ -106,14 +113,9 @@ export default class Driver {
       var requests = this.directSamples();
       this.requestSamples(requests);
       this.age(this.ageFactor, this.cache);
-
-    /*  if(frameIndex % 20 === 0)
-      console.log("\n completeness: " + this.statistics.completeness 
-      + "\n totalPriority: " + this.statistics.totalPriority 
-      + "\n threshold: " + this.statistics.threshold 
-      + "\n candidates: " + this.statistics.candidates 
-      + "\n requests: " + this.statistics.requests
-      + "\n totalFrames: " + frameIndex);*/
+      
+      //export information to csv
+      this.parse(frameIndex, fps);
      }
   }
 
@@ -124,12 +126,92 @@ export default class Driver {
       if (frameIndex === 0) {
         this.initializeCache();
       }
+      this.reprojectFrame();
+      this.depthCulling();
       this.fillGaps();
       var requests = this.directSamples();
       this.requestSamples(requests);
      }
   }
 
+  parse(frameIndex, fps){
+    if(frameIndex % 10 === 0)
+    console.log("\n completeness: " + this.statistics.completeness 
+    + "\n totalPriority: " + this.statistics.totalPriority 
+    + "\n threshold: " + this.statistics.threshold 
+    + "\n candidates: " + this.statistics.candidates 
+    + "\n requests: " + this.statistics.requests
+    + "\n totalFrames: " + frameIndex);
+
+    this.fps++;
+
+    this.runTime += Date.now() - this.runTime;
+    //data to be converted to csv
+    var row = [
+      this.statistics.completeness, 
+      this.statistics.totalPriority,
+      this.statistics.threshold,
+      this.statistics.candidates, 
+      this.statistics.requests,
+      frameIndex,
+      this.fps,
+     // this.runTime
+    ];
+
+    //every second add a row with the above information
+    if (Date.now() - this.startTime > 1000) {
+      Date.now() - this.startTime
+      this.startTime = Date.now();
+      this.rows.push(row);
+      this.fps = 0;
+    }
+    
+    //if frameIndex is a certain value then export file
+    if(frameIndex === 150){
+      this.exportToCsv("file", this.rows);
+    }
+  }
+
+  exportToCsv(filename, rows) {
+    var processRow = function (row) {
+        var finalVal = '';
+        for (var j = 0; j < row.length; j++) {
+            var innerValue = row[j] === null ? '' : row[j].toString();
+            if (row[j] instanceof Date) {
+                innerValue = row[j].toLocaleString();
+            };
+            var result = innerValue.replace(/"/g, '""');
+            if (result.search(/("|,|\n)/g) >= 0)
+                result = '"' + result + '"';
+            if (j > 0)
+                finalVal += ',';
+            finalVal += result;
+        }
+        return finalVal + '\n';
+    };
+
+    var csvFile = '';
+    for (var i = 0; i < rows.length; i++) {
+        csvFile += processRow(rows[i]);
+    }
+
+    var blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
+    if (navigator.msSaveBlob) { // IE 10+
+        navigator.msSaveBlob(blob, filename);
+    } else {
+        var link = document.createElement("a");
+        if (link.download !== undefined) { // feature detection
+            // Browsers that support HTML5 download attribute
+            var url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+}
 
   getPixel(x, y) {
     return this.buffer[this.addressY[y] + x];
@@ -244,7 +326,7 @@ export default class Driver {
     requests.push(cacheItem);
   }
 
-  initializeCache() 
+  initializeCache(worker) 
   {
     var iterations = 0;
     var cacheUsage = 0.0;
@@ -260,7 +342,7 @@ export default class Driver {
         var pixel = this.getPixel(x, y);
         this.addRequest(requests, pixel);
       }
-      this.requestSamples(requests);
+      this.requestSamples(requests, worker);
       this.age(this.ageFactor, requests);
       //console.log("Cache usage: " + cacheUsage * 100.0);
       cacheUsage += this.maximumSamplesPerFrameRatio;
@@ -289,29 +371,14 @@ export default class Driver {
 		this.age(this.ageFactor, requests);
 	}
 
-  resetBuffer() {
-
- /* for (var y = 1; y <= this.camera.scope.y; y++)
-   {
-      for (var x = 1; x <= this.camera.scope.x; x++) 
-      {
-        var pixel = this.getPixel(x, y);
-        pixel.depth = this.depthThreshold;
-        if(pixel.age > -1)
-        {
-          this.freeCacheItem(pixel.element);
-
-        }
-		    pixel.element = null;
-      }
-    }*/
-
-    for (var i = 0; i < this.cacheSize; i++) 
+  resetBuffer() 
+  {
+    var counter = this.cacheSize * this.maximumSamplesPerFrameRatio;
+    for (var i = 0; i < counter; i++) 
     {
       var cacheItem = this.cache[i];
-      if(cacheItem.color === null || cacheItem.age > 25 || cacheItem.resample === true || cacheItem.pixel === null)
-      {
-        //««this.freeCacheItem(cacheItem);
+      if(cacheItem.color === null || cacheItem.age > 35 || cacheItem.pixel === null)      {
+        this.freeCacheItem(cacheItem);
       }
     }
   }
@@ -454,7 +521,7 @@ export default class Driver {
 							// a depth descontinuity exists between neighborhood
 							// and center pixel so strongly age cache item
               cacheItem.age += (this.ageFactor * 10);
-             /* if(cacheItem.age > 35){
+              /*if(cacheItem.age > 35){
                 this.freeCacheItem(cacheItem);
               }*/
               //cacheItem.element = null;
@@ -488,26 +555,13 @@ export default class Driver {
     //this.numberOfSamples = 0;
     var completeness = 0;
 
-    // Now that depth are consistent (from depth culling)
-    // atribute colors from existing cacheItems to the
-    // corresponding pixels
-    /*for (var y = 1; y <= this.camera.scope.y; y++) {
-      for (var x = 1; x <= this.camera.scope.x; x++) {
-        var pixel = this.getPixel(x, y);
-        var cacheItem = pixel.element;
-        if (cacheItem) {
-          cacheItem.color = pixel.color;
-          //pixel.color = cacheItem.color;
-        } 
-      }
-    }*/
-
     // Interpolate color values to aproximate empty
     // pixels (that is pixels with no attached cache item)
     for (var y = 1; y <= this.camera.scope.y; y++) 
     {
       for (var x = 1; x <= this.camera.scope.x; x++) 
       {
+       // if(y % 2 === 0 || x % 2 === 0){
         var centerPixel = this.getPixel(x, y);
         // pixel has no data?
         if (centerPixel.element === null) 
@@ -541,7 +595,7 @@ export default class Driver {
                   colorWeight += itemWeight;
                   colorItems++;
                 }    
-          }
+           }
         }
 			
 			if (colorItems > 0) 
@@ -553,7 +607,9 @@ export default class Driver {
 				// Get a priority based on how many of
 				// their immediate neighbors had a cache item
 				centerPixel.priority = (age/colorItems);
-				centerPixel.priority += (this.interpolationZero + (weight - colorItems) * this.interpolationRandom);
+				centerPixel.priority += (this.interpolationZero 
+                                + (weight - colorItems) 
+                                * this.interpolationRandom);
         centerPixel.priority = Math.round(centerPixel.priority);
 
 				this.priorities[INTERPOLATED][centerPixel.priority]++;
@@ -584,107 +640,18 @@ export default class Driver {
             totalPriority += centerPixel.priority;
             //this.numberOfSamples++;
           }
-
           this.priorities[SAMPLED][centerPixel.priority]++;
           completeness += 1.0; 
         }
         // Add to total frame priority
-      }
+     // }
     }
+  }
 
 		// by this time all pixels are mapped to the render cache
 		this.statistics.completeness = 100.0 * (completeness / (this.camera.scope.x * this.camera.scope.y));
 		this.statistics.totalPriority = totalPriority;
   }
-
-  /*directSamples() {
-    var threshold = this.priorityMax;
-    var count = this.priorities[URGENT][threshold];
-    var test;
-
-    while (count < this.maximumSamplesPerFrame) {
-      test = this.priorities[INTERPOLATED][threshold] + this.priorities[SAMPLED][threshold];
-       // console.log(this.priorities[SAMPLED][threshold]);
-
-      count += test;
-      if (count < this.maximumSamplesPerFrame) {
-        threshold = threshold - 2;
-      }
-    }
-    var sizeFactor = 1;
-    if (threshold === this.priorityMax) 
-    {
-      sizeFactor = Math.floor(count / this.maximumSamplesPerFrame);
-      if (sizeFactor < 1.2) sizeFactor = 1.0;
-    }
-
-    var occurence = 0;
-    var requests = new Array();
-    threshold = (threshold*this.maximumSamplesPerFrameRatio);
-    for (var y = 1; y <= this.camera.scope.y; y++)  
-    {
-      if (y % 2 === 0) 
-      {
-        for (var x = 1; x <= this.camera.scope.x; x++) 
-        {
-          var pixel = this.getPixel(x, y);
-
-          if (pixel.priority >= 0) 
-          {
-            if (occurence >= sizeFactor) 
-            {
-              occurence = occurence - sizeFactor;
-              this.addRequest(requests, pixel);
-              //this.distributeHalfPriority(pixel, threshold, x, y, +1, 1);
-              this.distributeHalfPriority(pixel, threshold, x, y, 1, 1);
-
-              //pixel.sample = true;
-            } 
-            else 
-            {
-              occurence = occurence + 1.0;
-            }
-            
-          } 
-          else 
-          {
-            pixel.sample = false;
-          }
-        }
-      } 
-      else 
-      {    
-        for (var x = this.camera.scope.x; x >= 0; x--)
-        //for (var x = 1; x <= this.camera.scope.x; x++) 
-        {
-          var pixel = this.getPixel(x, y);
-
-          if (pixel.priority >= threshold) 
-          {
-            if (occurence >= sizeFactor) 
-            {
-              occurence = occurence - sizeFactor;
-              this.addRequest(requests, pixel);
-              //this.distributeHalfPriority(pixel, threshold, x, y, -1, 1);
-              this.distributeHalfPriority(pixel, threshold, x, y, -1, 1);
-
-              //pixel.sample = true;
-            } 
-            else 
-            {
-              occurence = occurence + 1.0;
-            }
-            
-          } 
-          else 
-          {
-            pixel.sample = false;
-          }
-        }
-      }
-    }
-    return requests;
-  }*/
 
   directSamples() 
   {
@@ -779,6 +746,7 @@ export default class Driver {
       else 
       {
           // traverse x descending
+          // @ts-ignore
           for (var x = this.camera.scope.x; x > 0; x--) {
             var pixel = this.getPixel(x, y);
             // pixel priority high? 
@@ -846,15 +814,32 @@ export default class Driver {
   }
   
 
-  requestSamples(requests) 
-  {
-		this.statistics.requests = requests.length;
+  requestSamples(requests, worker) 
+  {    
 
+		this.statistics.requests = requests.length;
+    var camera = function (n) { return this.camera.from; };
+
+    // @ts-ignore
+    var p = new Parallel(request, {
+      env: {
+          a: camera
+      },
+      envNamespace: 'camera'
+  }, {maxWorkers: 1});
+
+    //p.require(requests);
+    //p.require(camera);
+    //p.require(this.engine);
+
+ 
     for (var i = 0; i < requests.length; i++) 
-    {
+    {  
       var request = requests[i];
-      if(request.pixel !== null)
-      {
+
+      //console.log(requests[5]);
+   // p.spawn(request => 
+    //{
       if (request.resample) 
       {
         this.camera.computeDirToHit(request);
@@ -864,27 +849,16 @@ export default class Driver {
         this.camera.computeDirToPixel(request);
       }
       //make parallel here?
-       request = request.doRaytracing(this.engine, this.camera.from, request);
+      request = request.doRaytracing(this.engine, this.camera.from, request);
      
-       //var e = JSON.parse(JSON.stringify(this.engine));
-       //var c = JSON.parse(JSON.stringify(this.camera));
-       //var r = JSON.parse(JSON.stringify(request));
-       /*var data = {
-        engine: this.engine,
-        camera: this.camera,
-        request: request,
-      };*/
-
-
-     /*  this.worker.onmessage = function(e) {
-        request = e.data.request;
-        }.bind(request);
-
-        this.worker.postMessage(request);*/
-
-      }
+       // return request;
+      //});
+      
     }
+    
   }
+
+    
 
 	age(amount, items) 
   {

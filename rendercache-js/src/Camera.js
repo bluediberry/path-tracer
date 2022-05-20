@@ -10,9 +10,14 @@ export default class Camera {
   constructor(from, to, fov, width, height) {
     this.scope = { x: width, y: height };
     this.from = from;
+    this.to = to;
+    this.fov = fov;
     this.halfScope = { x: 0.5 * width, y: 0.5 * height };
+    // @ts-ignore
 	  this.raycaster = new THREE.Raycaster();
+    // @ts-ignore
   	this.pixel = new THREE.Vector2();
+    // @ts-ignore
     this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
     //this.cam.position.set(from.x, from.y, from.z);
   	this.updatePosition(from, to);
@@ -27,6 +32,32 @@ export default class Camera {
 	this.cam.updateProjectionMatrix();
   }
 
+  serialize() {
+    var scope = this.scope;
+    var from = this.from;
+    var to = this.to;
+    var fov = this.fov;
+
+    return {
+        "from": from,
+        "to": to,
+        "fov": fov,
+        "widht": scope.x,
+        "height": scope.y,
+    };
+}
+
+static deserialize(data) {
+    var from = data.from;
+    var to = data.to;
+    var fov = data.fov;
+    var width = data.width;
+    var height = data.height;
+
+    var camera = new Camera(from, to, fov, width, height);
+
+    return camera;
+}
 
   computeDirToPixel(sample) {
     sample.rayDir = this.computeDirToXY(sample.pixel.x, sample.pixel.y);
@@ -51,7 +82,7 @@ export default class Camera {
 
   reprojectPixel(sample, result) {
     var depth = sample.hit.subtract(this.from).length();
-
+// @ts-ignore
     var vector = new THREE.Vector3(sample.hit.x, sample.hit.y, sample.hit.z);
     vector.project(this.cam);
     vector.x = vector.x * this.halfScope.x + this.halfScope.x;

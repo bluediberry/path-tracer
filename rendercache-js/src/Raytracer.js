@@ -3,14 +3,28 @@ import Vector3 from './Vector3.js'
 const MAX_RAY_DEPTH = 1;
 const INFINITY = 1e8;
 
-/**
- * @class RayTracer
- */
 export default class Raytracer {
 	
     constructor(scene, camera) {
 		this.scene = scene;
 		this.camera = camera;
+    }
+
+    serialize() {
+        var scene = this.scene;
+        var camera = this.camera;
+
+        return [{
+            "scene": scene,
+            "camera": camera,
+        }];
+    }
+
+    static deserialize(data) {
+        var scene = data.scene;
+        var camera = data.camera;
+        var engine = new Raytracer(scene,camera);
+        return engine;
     }
 
     trace(rayOrigin, sample, depth) {
