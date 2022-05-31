@@ -48,9 +48,9 @@ static deserialize(data) {
 
   doRaytracing(raytracer, from, request) {
     
-    var c = raytracer.trace(from, request, 0);
+    const c = raytracer.trace(from, request, 0);
 
-    // vector to color
+  //  Promise.all([c]).then((values) => {    // vector to color
     this.color = new Color();
     this.color.copy(c.x, c.y, c.z);
 
@@ -71,5 +71,7 @@ static deserialize(data) {
     this.inUse = true;
 
     return request;
+ // });
   }
+
 }

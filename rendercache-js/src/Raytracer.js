@@ -20,20 +20,27 @@ export default class Raytracer {
         }];
     }
 
-    static deserialize(data) {
-        var scene = data.scene;
-        var camera = data.camera;
-        var engine = new Raytracer(scene,camera);
-        return engine;
-    }
 
     trace(rayOrigin, sample, depth) {
         var tnear = INFINITY;
         var element = null;
 
+         // @ts-ignore
+        /* var p = new Parallel(sample, rayOrigin, {
+            env: {
+                x: rayOrigin.x,
+                y: rayOrigin.y,
+                z: rayOrigin.z,
+            },
+            envNamespace: 'ray'
+        }, {maxWorkers: 1});*/
+
+        //console.log(rayOrigin);
+     //   p.spawn(sample => {
         var elements = this.scene.getElements();
         var elementsLen = elements.length;
-
+      //  rayOrigin = new Vector3(global.env.x, global.env.y, global.env.z);
+        //console.log(rayOrigin);
         var hitInfo = {t0:INFINITY, t1:INFINITY};
         for(var i=0; i<elementsLen; i++) {
             hitInfo.t0 = INFINITY;
@@ -107,7 +114,12 @@ export default class Raytracer {
         }
 
         surfaceColor = surfaceColor.add(mat.emissionColor);
+        //console.log(surfaceColor);
         return surfaceColor;
+
+        
+    
+    //});
     }
 
     render(width, height, startY, scanHeight) {

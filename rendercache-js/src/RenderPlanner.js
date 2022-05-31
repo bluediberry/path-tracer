@@ -72,7 +72,8 @@ export default class RenderPlanner {
             "data": [this.backgroundColor.x, this.backgroundColor.y, this.backgroundColor.z]
         });
 
-        var sectionHeight = Math.floor(this.height/this.jobCount);
+        //var sectionHeight = Math.floor(this.height/this.jobCount);
+        var sectionHeight = Math.floor(this.height);
         var sectionStart = Math.floor(index*sectionHeight);
 
         // set ray tracer dimensions
@@ -90,7 +91,7 @@ export default class RenderPlanner {
             {// @ts-ignore
                 this.completedJobs++;
                 // @ts-ignore
-                if(this.completedJobs == this.jobCount)
+                if(this.completedJobs == 1)
                 {
                     this.running = false;
                 }

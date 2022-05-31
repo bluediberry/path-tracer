@@ -24,6 +24,6 @@ export default class Pixel {
 	this.weight = 0.0;
   }
   toString() {
-	  return this.x + " " + this.y + " " + (this.element != null) + " " + this.depth + (this.element != null? this.element.hit : "");
+	  return this.x + " " + this.y + " " + this.color + " " + (this.element != null) + " " + this.depth + (this.element != null? this.element.hit : "");
   }
 }

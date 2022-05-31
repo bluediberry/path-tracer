@@ -1,5 +1,6 @@
 import Vector3 from "./Vector3.js";
 import Pixel from "./Pixel.js";
+import * as THREE from '../js/three.module.js';
 
 const ALMOST_ZERO = 0.000000001;
 const MAX_REAL = +3.402823466e38;
@@ -13,11 +14,8 @@ export default class Camera {
     this.to = to;
     this.fov = fov;
     this.halfScope = { x: 0.5 * width, y: 0.5 * height };
-    // @ts-ignore
 	  this.raycaster = new THREE.Raycaster();
-    // @ts-ignore
   	this.pixel = new THREE.Vector2();
-    // @ts-ignore
     this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
     //this.cam.position.set(from.x, from.y, from.z);
   	this.updatePosition(from, to);
@@ -33,26 +31,18 @@ export default class Camera {
   }
 
   serialize() {
-    var scope = this.scope;
+
+    var jelement = JSON.stringify(this);
+
+    return jelement;
+}
+
+static deserialize() {
     var from = this.from;
     var to = this.to;
     var fov = this.fov;
-
-    return {
-        "from": from,
-        "to": to,
-        "fov": fov,
-        "widht": scope.x,
-        "height": scope.y,
-    };
-}
-
-static deserialize(data) {
-    var from = data.from;
-    var to = data.to;
-    var fov = data.fov;
-    var width = data.width;
-    var height = data.height;
+    var width = this.width;
+    var height = this.height;
 
     var camera = new Camera(from, to, fov, width, height);
 
