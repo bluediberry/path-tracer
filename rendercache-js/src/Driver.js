@@ -15,7 +15,7 @@ export default class Driver {
     this.test = false;
     this.camera = camera;
     this.scene = new Scene();
-    this.engine = new RayTracer(this.scene, camera);
+    this.engine = new RayTracer(this.scene);
     this.cache = null;
     this.buffer = null;
     this.addressY = null;
@@ -168,7 +168,7 @@ export default class Driver {
     
     //if frameIndex is a certain value then export file
     if(frameIndex === 150){
-      this.exportToCsv("file", this.rows);
+     // this.exportToCsv("file", this.rows);
     }
   }
 
@@ -342,7 +342,7 @@ export default class Driver {
         var pixel = this.getPixel(x, y);
         this.addRequest(requests, pixel);
       }
-      this.requestSamples(requests, worker);
+      this.requestSamples(requests);
       this.age(this.ageFactor, requests);
       //console.log("Cache usage: " + cacheUsage * 100.0);
       cacheUsage += this.maximumSamplesPerFrameRatio;
@@ -814,32 +814,18 @@ export default class Driver {
   }
   
 
-  requestSamples(requests, worker) 
+  requestSamples(requests) 
   {    
 
 		this.statistics.requests = requests.length;
-    var camera = function (n) { return this.camera.from; };
 
-    // @ts-ignore
-    var p = new Parallel(request, {
-      env: {
-          a: camera
-      },
-      envNamespace: 'camera'
-  }, {maxWorkers: 1});
+    var fromRequests = [];
+    var newRequests = [];
 
-    //p.require(requests);
-    //p.require(camera);
-    //p.require(this.engine);
-
- 
     for (var i = 0; i < requests.length; i++) 
     {  
       var request = requests[i];
 
-      //console.log(requests[5]);
-   // p.spawn(request => 
-    //{
       if (request.resample) 
       {
         this.camera.computeDirToHit(request);
@@ -848,13 +834,68 @@ export default class Driver {
       {
         this.camera.computeDirToPixel(request);
       }
-      //make parallel here?
-      request = request.doRaytracing(this.engine, this.camera.from, request);
-     
-       // return request;
-      //});
-      
+
+      fromRequests.push(this.camera.from);
+
+      newRequests.push(request.serialize(fromRequests[i]));
     }
+
+
+    var p = new Parallel(newRequests, {maxWorkers: 1});
+
+    //p.require(requests);
+    //p.require(camera);
+    //p.require(this.engine);
+
+      //console.log(requests[5]);
+   // p.spawn(request => 
+    //{
+    for (var i = 0; i < newRequests.length; i++) 
+    {  
+      var newRequest = new Sample();
+     // newRequest.deserialize();
+
+      newRequest.hit = new Vector3();
+      newRequest.hit.x = newRequests[i].hit[0];
+      newRequest.hit.y = newRequests[i].hit[1];
+      newRequest.hit.z = newRequests[i].hit[2];
+
+      newRequest.normalDir = new Vector3();
+      newRequest.normalDir.x = newRequests[i].normalDir[0];
+      newRequest.normalDir.y = newRequests[i].normalDir[1];
+      newRequest.normalDir.z = newRequests[i].normalDir[2];
+
+      newRequest.rayDir = new Vector3();
+      newRequest.rayDir.x = newRequests[i].rayDir[0];
+      newRequest.rayDir.y = newRequests[i].rayDir[1];
+      newRequest.rayDir.z = newRequests[i].rayDir[2];
+
+      var fromRequest = new Vector3();
+      fromRequest.x = newRequests[i].rayOrigin[0];
+      fromRequest.y = newRequests[i].rayOrigin[1];
+      fromRequest.z = newRequests[i].rayOrigin[2];
+
+      newRequest.color = new Color();
+      newRequest.color.r = newRequests[i].color[0];
+      newRequest.color.g = newRequests[i].color[1];
+      newRequest.color.b = newRequests[i].color[2];
+
+      newRequest.age = newRequests[i].age;
+      newRequest.resample = newRequests[i].resample;
+      newRequest.inUse = newRequests[i].inUse;
+    
+      //console.log(newRequest.color);
+      var request = requests[i];
+     // var fromRequest = fromRequests[i];
+
+      request.doRaytracing(this.engine, fromRequest, request);
+
+    }
+
+     p.spawn(request => 
+    {
+
+    });
     
   }
 

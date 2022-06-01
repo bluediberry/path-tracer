@@ -1,23 +1,26 @@
 import Color from "./Color.js";
+import Pixel from "./Pixel.js";
+import Vector3 from "./Vector3.js";
 
 export default class Sample {
   constructor() {
-    this.pixel = null;
-    this.color = null;
-	  this.hit = null;
-	  this.normalDir = null;
-    this.rayDir = null;
+    this.pixel = new Pixel();
+    this.color = new Color();
+	  this.hit = new Vector3();
+	  this.normalDir = new Vector3();
+    this.rayDir = new Vector3();
 	  this.age = 0;
     this.resample = false;
   	this.inUse = false;  
+    
   }
 
   clear() {
-    this.pixel = null;
-    this.color = null;
-	  this.hit = null;
-	  this.normalDir = null;
-    this.rayDir = null;
+    this.pixel = new Pixel();
+    this.color = new Color();
+	  this.hit = new Vector3();
+	  this.normalDir = new Vector3();
+    this.rayDir = new Vector3();
 	  this.age = -1;
     this.resample = false;
 	  this.inUse = false;
@@ -32,23 +35,40 @@ export default class Sample {
     pixel.element = this;
   }
 
-  serialize(request) {
-    var request = request;
+  serialize(rayOrigin) {
+	  var hit = this.hit;
+	  var normalDir = this.normalDir;
+    var rayDir = this.rayDir;
+    var color = this.color;
+	  var age = this.age;
+    var resample = this.resample;
+  	var inUse = this.inUse;  
 
     return {
-        "request": request,
+      "hit": [hit.x, hit.y, hit.z],
+      "normalDir": [normalDir.x, normalDir.y, normalDir.z],
+      "rayDir": [rayDir.x, rayDir.y, rayDir.z],
+      "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
+      "color": [color.r, color.g, color.b],
+      "age": age,
+      "resample": resample,
+      "inUse": inUse,
     };
 }
 
 static deserialize(data) {
-    var request = data.request;
+    var sample = data.sample;
 
-    return request;
+    return sample;
 }
 
-  doRaytracing(raytracer, from, request) {
+  doRaytracing(raytracer, rayOrigin, sample) {
+
+    var rayDir = sample.rayDir;
+    var hit = sample.hit;
+    var normalDir = sample.normalDir;
     
-    var c = raytracer.trace(from, request, 0);
+    var c = raytracer.trace(rayOrigin, sample, rayDir, hit, normalDir);
 
     // vector to color
     this.color = new Color();
@@ -70,6 +90,6 @@ static deserialize(data) {
 	// sample is in use
     this.inUse = true;
 
-    return request;
+    return sample;
   }
 }
