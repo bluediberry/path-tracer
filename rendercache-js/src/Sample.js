@@ -45,7 +45,7 @@ export default class Sample {
   	var inUse = this.inUse;  
 
     return {
-      "hit": [hit.x, hit.y, hit.z],
+      "hit": [this.hit.x, this.hit.y, this.hit.z],
       "normalDir": [normalDir.x, normalDir.y, normalDir.z],
       "rayDir": [rayDir.x, rayDir.y, rayDir.z],
       "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
@@ -56,10 +56,40 @@ export default class Sample {
     };
 }
 
-static deserialize(data) {
-    var sample = data.sample;
+ deserialize(newRequests) 
+{
+    this.hit = new Vector3();
+    this.hit.x = newRequests.hit[0];
+    this.hit.y = newRequests.hit[1];
+    this.hit.z = newRequests.hit[2];
 
-    return sample;
+    this.normalDir = new Vector3();
+    this.normalDir.x = newRequests.normalDir[0];
+    this.normalDir.y = newRequests.normalDir[1];
+    this.normalDir.z = newRequests.normalDir[2];
+
+    this.rayDir = new Vector3();
+    this.rayDir.x = newRequests.rayDir[0];
+    this.rayDir.y = newRequests.rayDir[1];
+    this.rayDir.z = newRequests.rayDir[2];
+
+    var fromRequest = new Vector3();
+    fromRequest.x = newRequests.rayOrigin[0];
+    fromRequest.y = newRequests.rayOrigin[1];
+    fromRequest.z = newRequests.rayOrigin[2];
+
+    this.color = new Color();
+    this.color.r = newRequests.color[0];
+    this.color.g = newRequests.color[1];
+    this.color.b = newRequests.color[2];
+
+    this.age = newRequests.age;
+    this.resample = newRequests.resample;
+    this.inUse = newRequests.inUse;
+
+    this.pixel = new Pixel();
+
+  return this;
 }
 
   doRaytracing(raytracer, rayOrigin, sample) {

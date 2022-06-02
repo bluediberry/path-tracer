@@ -835,9 +835,9 @@ export default class Driver {
         this.camera.computeDirToPixel(request);
       }
 
-      fromRequests.push(this.camera.from);
+      fromRequests[i] = this.camera.from;
 
-      newRequests.push(request.serialize(fromRequests[i]));
+      newRequests[i] = request.serialize(fromRequests[i]);
     }
 
 
@@ -853,42 +853,48 @@ export default class Driver {
     for (var i = 0; i < newRequests.length; i++) 
     {  
       var newRequest = new Sample();
-     // newRequest.deserialize();
-
-      newRequest.hit = new Vector3();
-      newRequest.hit.x = newRequests[i].hit[0];
-      newRequest.hit.y = newRequests[i].hit[1];
-      newRequest.hit.z = newRequests[i].hit[2];
-
-      newRequest.normalDir = new Vector3();
-      newRequest.normalDir.x = newRequests[i].normalDir[0];
-      newRequest.normalDir.y = newRequests[i].normalDir[1];
-      newRequest.normalDir.z = newRequests[i].normalDir[2];
-
-      newRequest.rayDir = new Vector3();
-      newRequest.rayDir.x = newRequests[i].rayDir[0];
-      newRequest.rayDir.y = newRequests[i].rayDir[1];
-      newRequest.rayDir.z = newRequests[i].rayDir[2];
+      newRequest.deserialize(newRequests[i]);
 
       var fromRequest = new Vector3();
       fromRequest.x = newRequests[i].rayOrigin[0];
       fromRequest.y = newRequests[i].rayOrigin[1];
       fromRequest.z = newRequests[i].rayOrigin[2];
 
-      newRequest.color = new Color();
-      newRequest.color.r = newRequests[i].color[0];
-      newRequest.color.g = newRequests[i].color[1];
-      newRequest.color.b = newRequests[i].color[2];
+      //console.log(requests[i]);
+      //console.log(newRequest);
 
-      newRequest.age = newRequests[i].age;
-      newRequest.resample = newRequests[i].resample;
-      newRequest.inUse = newRequests[i].inUse;
-    
-      //console.log(newRequest.color);
       var request = requests[i];
      // var fromRequest = fromRequests[i];
 
-      request.doRaytracing(this.engine, fromRequest, request);
+      //request.doRaytracing(this.engine, fromRequest, request);
+
+      var rayDir = newRequest.rayDir;
+      var hit = newRequest.hit;
+      var normalDir = newRequest.normalDir;
+      
+      var c = this.engine.trace(fromRequest, request, rayDir, hit, normalDir);
+
+      // vector to color
+      request.color.copy(c.x, c.y, c.z);
+      // truncate if beyond 1
+      request.color.r = Math.min(1, request.color.r);
+      request.color.g = Math.min(1, request.color.g);
+      request.color.b = Math.min(1, request.color.b);
+
+      // convert pixel to bytes
+      request.color.r = Math.round(request.color.r * 255);
+      request.color.g = Math.round(request.color.g * 255);
+      request.color.b = Math.round(request.color.b * 255);
+
+    // set pixel color to this sample color 
+    newRequest.pixel.color = newRequest.color;
+     //console.log(request.color);
+
+  
+    // sample is in use
+      this.inUse = true;
+ 
+      //return request;
 
     }
 

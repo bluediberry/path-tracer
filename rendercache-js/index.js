@@ -73,10 +73,10 @@ function animate()
 
   //controls.update();
 	// this is just a minor location update
-	//from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
+	from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
   //from.y = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
-	//from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
-	//angle += 5;
+	from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
+	angle += 5;
 
   if(raytrace)
   {
