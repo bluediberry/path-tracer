@@ -13,11 +13,11 @@ onmessage = function(e) {
 };
 
 var scene = new Scene();
-var backgroundColor = new Vector3(0, 0, 0);
-var rendererWidth = 0;
-var rendererHeight = 0;
-var startY = 0;
-var scanHeight = 0;
+var fromRequest = new Vector3(0, 0, 0);
+var hit = new Vector3(0, 0, 0);
+var normalDir = new Vector3(0, 0, 0);
+var rayDir = new Vector3(0, 0, 0);
+var newRequest = [];
 
 function rendererMessageHandler(e) {
     var action = e.data.action;
@@ -30,18 +30,30 @@ function rendererMessageHandler(e) {
             scene.add(Sphere.deserialize(elements[i]));
         }
     }
-    else if(action == "backgroundColor")
+    else if(action == "from")
     {
-        backgroundColor.x = data[0];
-        backgroundColor.y = data[1];
-        backgroundColor.z = data[2];
+        fromRequest.x = data[0];
+        fromRequest.y = data[1];
+        fromRequest.z = data[2];
     }
-    else if(action == "dimensions")
+    else if(action == "hit")
     {
-        rendererWidth = data[0];
-        rendererHeight = data[1];
-        startY = data[2];
-        scanHeight = data[3];
+        hit.x = data[0];
+        hit.y = data[1];
+        hit.z = data[2];
+    }
+    else if(action == "rayDir")
+    {
+        rayDir.x = data[0];
+        rayDir.y = data[1];
+        rayDir.z = data[2];
+    }
+    else if(action == "normalDir")
+    {
+        normalDir.x = data[0];
+        normalDir.y = data[1];
+        normalDir.z = data[2];
+
     }
     else if(action == "render")
     {
@@ -52,15 +64,17 @@ messageHandler = rendererMessageHandler;
 
 function startRendering()
 {
-    var startTime = new Date();
-    var rayTracer = new RayTracer(backgroundColor, scene);
-    var buffer = rayTracer.render(rendererWidth, rendererHeight, startY, scanHeight);
-    var endTime = new Date();
-
+    newRequest.hit = hit;
+    newRequest.normalDir = normalDir;
+    newRequest.rayDir = rayDir;
+    //console.log(newRequest)
+    var rayTracer = new RayTracer(scene);
+    var color = rayTracer.trace(fromRequest, newRequest);
+    //console.log(color)
     // send result buffer
-    var buf8  = new Uint8ClampedArray(buffer);
+    //var buf8  = new Uint8ClampedArray(buffer);
     postMessage({
         "action": "result",
-        "data": buf8
+        "data": [color.x, color.y, color.z]
     });
 }

@@ -36,7 +36,7 @@ export default class Sample {
   }
 
   serialize(rayOrigin) {
-    var pixel = null;
+    var pixel = this.pixel;
     var color = this.color;
 	  var hit = this.hit;
 	  var normalDir = this.normalDir;
@@ -46,7 +46,7 @@ export default class Sample {
   	var inUse = this.inUse;  
 
     return {
-      "pixel": pixel,
+      "pixel": [pixel.x, pixel.y, pixel.color],
       "color": [color.r, color.g, color.b],
       "hit": [hit.x, hit.y, hit.z],
       "normalDir": [normalDir.x, normalDir.y, normalDir.z],

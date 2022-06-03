@@ -92,7 +92,7 @@ function animate()
 
 
 	// compute frame data
-	driver.getReprojectionFrame(colorbuffer);
+	driver.getColorFrame(colorbuffer);
 
 	// copy  buffer to canvas
 	var buf8 = new Uint8ClampedArray(buffer);

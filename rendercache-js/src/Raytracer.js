@@ -27,7 +27,7 @@ export default class Raytracer {
         return engine;
     }
 
-    trace(rayOrigin, sample, rayDir, hit, normalDir) {
+    trace(rayOrigin, sample) {
         var tnear = INFINITY;
         var element = null;
 
@@ -39,7 +39,7 @@ export default class Raytracer {
             hitInfo.t0 = INFINITY;
             hitInfo.t1 = INFINITY;
             var el = elements[i];
-            if(el.intersect(rayOrigin, rayDir, hitInfo)) {
+            if(el.intersect(rayOrigin, sample.rayDir, hitInfo)) {
                 // ray hit intersect
                 if(hitInfo.t0 < 0) {
                     hitInfo.t0 = hitInfo.t1;
@@ -54,23 +54,23 @@ export default class Raytracer {
 
         if(element === null) {
             // consider a very far away point to be the hit
-            hit = rayOrigin.add(rayDir.multiply(100000.0));
-            normalDir = new Vector3(-hit.x, -hit.y, -hit.z); 
+            sample.hit = rayOrigin.add(sample.rayDir.multiply(100000.0));
+            sample.normalDir = new Vector3(-sample.hit.x, -sample.hit.y, -sample.hit.z); 
 			// no hit, return background color
 			return this.scene.backgroundColor;
         }
 
         var surfaceColor = new Vector3(0,0,0);
-        var intersectionPoint = rayOrigin.clone().add(rayDir.clone().multiply(tnear));
+        var intersectionPoint = rayOrigin.clone().add(sample.rayDir.clone().multiply(tnear));
 
         var intersectionNormal = element.getNormal(intersectionPoint);
 
         sample.hit = intersectionPoint.clone();
-		normalDir = intersectionNormal.normalize();
+		sample.normalDir = intersectionNormal.normalize();
 
         var bias = 1e-4;
         var inside = false;
-        if (rayDir.dot(intersectionNormal) > 0) {
+        if (sample.rayDir.dot(intersectionNormal) > 0) {
             intersectionNormal = intersectionNormal.invert();
             inside = true;
         }

@@ -71,17 +71,34 @@ export default class Driver {
 		};
 
     this.jobCount = 1;
-    /*this.workers = [];
-    for(var i=0; i<this.jobCount; i++)
-    {
-        this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
-    }*/
-
-    //this.worker = new Worker("./RenderWorker.js", {type: 'module'});
-
     this.rows = [];
     this.startTime = Date.now();
     this.runTime = Date.now();;
+
+    //this.serializeScene();
+
+    this.workers = [];
+    for(var i=0; i < this.jobCount; i++)
+    {
+        this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
+    }
+
+    this.messageReceived = true;
+    this.c = new Vector3(0, 0, 0);
+
+  }
+
+  
+  serializeScene()
+  {
+      // serialize scene
+      this.serializedElements = [];
+      var elements = this.scene.getElements();
+      for(var i=0; i<elements.length; i++)
+      {
+          var el = elements[i];
+          this.serializedElements.push(el.serialize());
+      }
   }
 
   prepare(isTest) {
@@ -814,11 +831,66 @@ export default class Driver {
   }
   
 
-  requestSamples(requests) 
-  {    
+  
+  prepareWorker(rendererWorker,fromRequest, newRequest)
+  {
 
-		this.statistics.requests = requests.length;
+    rendererWorker.postMessage({
+      "action": "from",
+      "data": [fromRequest.x, fromRequest.y, fromRequest.z]
+    });
 
+    rendererWorker.postMessage({
+      "action": "hit",
+      "data": [newRequest.hit.x, newRequest.hit.y, newRequest.hit.z]
+    });
+
+    rendererWorker.postMessage({
+      "action": "normalDir",
+      "data": [newRequest.normalDir.x, newRequest.normalDir.y, newRequest.normalDir.z]
+    });
+
+    rendererWorker.postMessage({
+      "action": "rayDir",
+      "data": [newRequest.rayDir.x, newRequest.rayDir.y, newRequest.rayDir.z]
+      
+    });
+
+    rendererWorker.postMessage({
+      "action": "render"
+    });
+  }
+
+  getSerializedRequest(newRequests, i)
+  {
+    var newRequest = [];
+
+    newRequest.hit = new Vector3(
+      newRequests[i].hit[0], 
+      newRequests[i].hit[1],
+      newRequests[i].hit[2]
+      );
+
+    newRequest.normalDir = new Vector3(
+      newRequests[i].normalDir[0], 
+      newRequests[i].normalDir[1],
+      newRequests[i].normalDir[2]
+    );
+
+    newRequest.rayDir = new Vector3(
+      newRequests[i].rayDir[0], 
+      newRequests[i].rayDir[1],
+      newRequests[i].rayDir[2]
+    );
+
+    newRequest.color = new Color();
+    newRequest.color.copy(newRequests[i].color);
+
+    return newRequest;
+  }
+
+   serializeRequests(requests)
+   {
     var fromRequests = [];
     var newRequests = [];
 
@@ -840,103 +912,78 @@ export default class Driver {
       newRequests[i] = request.serialize(fromRequests[i]);
     }
 
+    return newRequests;
+   }
 
-    var p = new Parallel(newRequests, {maxWorkers: 1});
+  requestSamples(requests) 
+  {    
 
-    function getSample(s) { 
-      s = new Sample();
-      return s; 
-    };
+		this.statistics.requests = requests.length;
 
-    p.require(requests);
-    p.require(getSample);
-    p.require(Sample);
-    p.require(RayTracer);
-
-      //console.log(requests[5]);
-   // p.spawn(request => 
-    //{
- // p.spawn(newRequests => 
-  //{
+    var newRequests = this.serializeRequests(requests);
     
-    for (var i = 0; i < newRequests.length; i++) 
+    for (var i = 0; i < requests.length; i++) 
     { 
       //console.log(newRequests[5]);
 
-      var newRequest = [];
+      var newRequest = this.getSerializedRequest(newRequests, i);
+      var request = requests[i];
 
-      newRequest.hit = new Vector3(
-        newRequests[i].hit[0], 
-        newRequests[i].hit[1],
-        newRequests[i].hit[2]
-        );
-  
-      newRequest.normalDir = new Vector3(
-        newRequests[i].normalDir[0], 
-        newRequests[i].normalDir[1],
-        newRequests[i].normalDir[2]
-      );
-  
-      newRequest.rayDir = new Vector3(
-        newRequests[i].rayDir[0], 
-        newRequests[i].rayDir[1],
-        newRequests[i].rayDir[2]
-      );
-  
+
+      newRequest.color = new Color();
+      newRequest.color.copy(newRequests[i].color);
+
+      //request.doRaytracing(this.engine, fromRequest, request);
+      var c = new Vector3(0, 0, 0);
+      this.messageReceived = false;
+
       var fromRequest = new Vector3(
         newRequests[i].rayOrigin[0], 
         newRequests[i].rayOrigin[1],
         newRequests[i].rayOrigin[2]
       );
-  
-      newRequest.color = new Color();
-      newRequest.color.copy(newRequests[i].color);
-  
-      newRequest.age = newRequests[i].age;
-      newRequest.resample = newRequests[i].resample;
-      newRequest.inUse = newRequests[i].inUse;
-
-      //console.log(requests[i]);
-      //console.log(newRequests[i]);
-
-     // var fromRequest = fromRequests[i];
-
-      //request.doRaytracing(this.engine, fromRequest, request);
-
-      var rayDir = newRequest.rayDir;
-      var hit = newRequest.hit;
-      var normalDir = newRequest.normalDir;
       
-      var c = this.engine.trace(fromRequest, newRequest, rayDir, hit, normalDir);
+      this.prepareWorker(this.workers[0], fromRequest, newRequest);
 
-    ///}  });
+      this.workers[0].onmessage = function(e) {
+        var action = e.data.action;
+        var data = e.data.data;
 
-   // for (var i = 0; i < requests.length; i++) 
-    //{ 
-      var request = requests[i];
-      // vector to color
-      request.color.copy(c.x, c.y, c.z);
-      // truncate if beyond 1
-      request.color.r = Math.min(1, request.color.r);
-      request.color.g = Math.min(1, request.color.g);
-      request.color.b = Math.min(1, request.color.b);
+        if(action == "result")
+        {
+          c.x = data[0];
+          c.y = data[1];
+          c.z = data[2];
 
-      // convert pixel to bytes
-      request.color.r = Math.round(request.color.r * 255);
-      request.color.g = Math.round(request.color.g * 255);
-      request.color.b = Math.round(request.color.b * 255);
+          this.messageReceived = true;
+          request.hit = newRequest.hit;
 
-      // set pixel color to this sample color 
-      //newRequest.pixel.color = newRequest.color;
-     //console.log(request.color);
+            // vector to color
+            request.color.copy(c.x, c.y, c.z);
 
-     // sample is in use
-      this.inUse = true;
- 
-      //return request;
-      request.hit = newRequest.hit;
+            // truncate if beyond 1
+            request.color.r = Math.min(1, request.color.r);
+            request.color.g = Math.min(1, request.color.g);
+            request.color.b = Math.min(1, request.color.b);
+
+            // convert pixel to bytes
+            request.color.r = Math.round(request.color.r * 255);
+            request.color.g = Math.round(request.color.g * 255);
+            request.color.b = Math.round(request.color.b * 255);
+
+            //set pixel color to this sample color 
+            request.pixel.color = request.color;
+            console.log(request.pixel.color);
+
+            //sample is in use
+            request.inUse = true;          
+        }
+        //console.log(request.color); works
+      }.bind(this);
+
+     //console.log(request.color); doesnt work
     }
-    
+    //return requests;
   }
 
     
