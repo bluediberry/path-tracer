@@ -847,7 +847,8 @@ export default class Driver {
       s = new Sample();
       return s; 
     };
-    //p.require(requests);
+
+    p.require(requests);
     p.require(getSample);
     p.require(Sample);
     p.require(RayTracer);
@@ -862,12 +863,38 @@ export default class Driver {
     { 
       //console.log(newRequests[5]);
 
-      var newRequest = new Sample();
-      newRequest.deserialize(newRequests[i]);
-      var fromRequest = new Vector3();
-      fromRequest.x = newRequests[i].rayOrigin[0];
-      fromRequest.y = newRequests[i].rayOrigin[1];
-      fromRequest.z = newRequests[i].rayOrigin[2];
+      var newRequest = [];
+
+      newRequest.hit = new Vector3(
+        newRequests[i].hit[0], 
+        newRequests[i].hit[1],
+        newRequests[i].hit[2]
+        );
+  
+      newRequest.normalDir = new Vector3(
+        newRequests[i].normalDir[0], 
+        newRequests[i].normalDir[1],
+        newRequests[i].normalDir[2]
+      );
+  
+      newRequest.rayDir = new Vector3(
+        newRequests[i].rayDir[0], 
+        newRequests[i].rayDir[1],
+        newRequests[i].rayDir[2]
+      );
+  
+      var fromRequest = new Vector3(
+        newRequests[i].rayOrigin[0], 
+        newRequests[i].rayOrigin[1],
+        newRequests[i].rayOrigin[2]
+      );
+  
+      newRequest.color = new Color();
+      newRequest.color.copy(newRequests[i].color);
+  
+      newRequest.age = newRequests[i].age;
+      newRequest.resample = newRequests[i].resample;
+      newRequest.inUse = newRequests[i].inUse;
 
       //console.log(requests[i]);
       //console.log(newRequests[i]);
@@ -900,7 +927,7 @@ export default class Driver {
       request.color.b = Math.round(request.color.b * 255);
 
       // set pixel color to this sample color 
-      newRequest.pixel.color = newRequest.color;
+      //newRequest.pixel.color = newRequest.color;
      //console.log(request.color);
 
      // sample is in use
