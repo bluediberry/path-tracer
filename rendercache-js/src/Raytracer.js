@@ -61,7 +61,7 @@ export default class Raytracer {
         }
 
         var surfaceColor = new Vector3(0,0,0);
-        var intersectionPoint = rayOrigin.add(rayDir.multiply(tnear));
+        var intersectionPoint = rayOrigin.clone().add(rayDir.clone().multiply(tnear));
 
         var intersectionNormal = element.getNormal(intersectionPoint);
 

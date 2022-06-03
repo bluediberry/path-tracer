@@ -36,52 +36,57 @@ export default class Sample {
   }
 
   serialize(rayOrigin) {
+    var pixel = null;
+    var color = this.color;
 	  var hit = this.hit;
 	  var normalDir = this.normalDir;
     var rayDir = this.rayDir;
-    var color = this.color;
 	  var age = this.age;
     var resample = this.resample;
   	var inUse = this.inUse;  
 
     return {
-      "hit": [this.hit.x, this.hit.y, this.hit.z],
+      "pixel": pixel,
+      "color": [color.r, color.g, color.b],
+      "hit": [hit.x, hit.y, hit.z],
       "normalDir": [normalDir.x, normalDir.y, normalDir.z],
       "rayDir": [rayDir.x, rayDir.y, rayDir.z],
-      "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
-      "color": [color.r, color.g, color.b],
       "age": age,
       "resample": resample,
       "inUse": inUse,
+      "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
     };
 }
 
  deserialize(newRequests) 
 {
-    this.hit = new Vector3();
-    this.hit.x = newRequests.hit[0];
-    this.hit.y = newRequests.hit[1];
-    this.hit.z = newRequests.hit[2];
+    this.hit = new Vector3(
+      newRequests.hit[0], 
+      newRequests.hit[1],
+      newRequests.hit[2]
+      );
 
-    this.normalDir = new Vector3();
-    this.normalDir.x = newRequests.normalDir[0];
-    this.normalDir.y = newRequests.normalDir[1];
-    this.normalDir.z = newRequests.normalDir[2];
 
-    this.rayDir = new Vector3();
-    this.rayDir.x = newRequests.rayDir[0];
-    this.rayDir.y = newRequests.rayDir[1];
-    this.rayDir.z = newRequests.rayDir[2];
+    this.normalDir = new Vector3(
+      newRequests.normalDir[0], 
+      newRequests.normalDir[1],
+      newRequests.normalDir[2]
+      );
 
-    var fromRequest = new Vector3();
-    fromRequest.x = newRequests.rayOrigin[0];
-    fromRequest.y = newRequests.rayOrigin[1];
-    fromRequest.z = newRequests.rayOrigin[2];
+    this.rayDir = new Vector3(
+      newRequests.rayDir[0], 
+      newRequests.rayDir[1],
+      newRequests.rayDir[2]
+      );
+
+    var fromRequest = new Vector3(
+      newRequests.rayOrigin[0], 
+      newRequests.rayOrigin[1],
+      newRequests.rayOrigin[2]
+      );
 
     this.color = new Color();
-    this.color.r = newRequests.color[0];
-    this.color.g = newRequests.color[1];
-    this.color.b = newRequests.color[2];
+    this.color.copy(newRequests.color);
 
     this.age = newRequests.age;
     this.resample = newRequests.resample;
@@ -89,37 +94,35 @@ export default class Sample {
 
     this.pixel = new Pixel();
 
-  return this;
 }
 
-  doRaytracing(raytracer, rayOrigin, sample) {
+  doRaytracing(raytracer, rayOrigin, request) {
 
-    var rayDir = sample.rayDir;
-    var hit = sample.hit;
-    var normalDir = sample.normalDir;
+    var rayDir = request.rayDir;
+    var hit = request.hit;
+    var normalDir = request.normalDir;
     
-    var c = raytracer.trace(rayOrigin, sample, rayDir, hit, normalDir);
+    var c = raytracer.trace(rayOrigin, request, rayDir, hit, normalDir);
 
     // vector to color
-    this.color = new Color();
-    this.color.copy(c.x, c.y, c.z);
-
-	// truncate if beyond 1
-    this.color.r = Math.min(1, this.color.r);
-    this.color.g = Math.min(1, this.color.g);
-    this.color.b = Math.min(1, this.color.b);
+    request.color.copy(c.x, c.y, c.z);
+    // truncate if beyond 1
+    request.color.r = Math.min(1, request.color.r);
+    request.color.g = Math.min(1, request.color.g);
+    request.color.b = Math.min(1, request.color.b);
 
     // convert pixel to bytes
-    this.color.r = Math.round(this.color.r * 255);
-    this.color.g = Math.round(this.color.g * 255);
-    this.color.b = Math.round(this.color.b * 255);
+    request.color.r = Math.round(request.color.r * 255);
+    request.color.g = Math.round(request.color.g * 255);
+    request.color.b = Math.round(request.color.b * 255);
 
-	// set pixel color to this sample color 
-    this.pixel.color = this.color;
+    // set pixel color to this sample color 
+    request.pixel.color = request.color;
+    //console.log(request.color);
 
-	// sample is in use
-    this.inUse = true;
+    // sample is in use
+      this.inUse = true;
 
-    return sample;
+    return request;
   }
 }

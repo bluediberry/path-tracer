@@ -843,27 +843,35 @@ export default class Driver {
 
     var p = new Parallel(newRequests, {maxWorkers: 1});
 
+    function getSample(s) { 
+      s = new Sample();
+      return s; 
+    };
     //p.require(requests);
-    //p.require(camera);
-    //p.require(this.engine);
+    p.require(getSample);
+    p.require(Sample);
+    p.require(RayTracer);
 
       //console.log(requests[5]);
    // p.spawn(request => 
     //{
+ // p.spawn(newRequests => 
+  //{
+    
     for (var i = 0; i < newRequests.length; i++) 
-    {  
+    { 
+      //console.log(newRequests[5]);
+
       var newRequest = new Sample();
       newRequest.deserialize(newRequests[i]);
-
       var fromRequest = new Vector3();
       fromRequest.x = newRequests[i].rayOrigin[0];
       fromRequest.y = newRequests[i].rayOrigin[1];
       fromRequest.z = newRequests[i].rayOrigin[2];
 
       //console.log(requests[i]);
-      //console.log(newRequest);
+      //console.log(newRequests[i]);
 
-      var request = requests[i];
      // var fromRequest = fromRequests[i];
 
       //request.doRaytracing(this.engine, fromRequest, request);
@@ -872,8 +880,13 @@ export default class Driver {
       var hit = newRequest.hit;
       var normalDir = newRequest.normalDir;
       
-      var c = this.engine.trace(fromRequest, request, rayDir, hit, normalDir);
+      var c = this.engine.trace(fromRequest, newRequest, rayDir, hit, normalDir);
 
+    ///}  });
+
+   // for (var i = 0; i < requests.length; i++) 
+    //{ 
+      var request = requests[i];
       // vector to color
       request.color.copy(c.x, c.y, c.z);
       // truncate if beyond 1
@@ -886,22 +899,16 @@ export default class Driver {
       request.color.g = Math.round(request.color.g * 255);
       request.color.b = Math.round(request.color.b * 255);
 
-    // set pixel color to this sample color 
-    newRequest.pixel.color = newRequest.color;
+      // set pixel color to this sample color 
+      newRequest.pixel.color = newRequest.color;
      //console.log(request.color);
 
-  
-    // sample is in use
+     // sample is in use
       this.inUse = true;
  
       //return request;
-
+      request.hit = newRequest.hit;
     }
-
-     p.spawn(request => 
-    {
-
-    });
     
   }
 
