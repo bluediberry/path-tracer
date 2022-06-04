@@ -86,6 +86,14 @@ export default class Driver {
     this.messageReceived = true;
     this.c = new Vector3(0, 0, 0);
 
+    var canvas = document.getElementById("resultCanvas");
+    this.ctx = canvas.getContext("2d");
+
+    // initialize buffer view
+    var colorDepth = 4;
+    // @ts-ignore
+    var buffer = new ArrayBuffer(camera.scope.x * camera.scope.y * colorDepth);
+    this.colorbuffer = new Uint32Array(buffer);
   }
 
   
@@ -857,6 +865,12 @@ export default class Driver {
     });
 
     rendererWorker.postMessage({
+      "action": "pixel",
+      "data": [newRequest.pixel.x, newRequest.pixel.y, newRequest.pixel.color]
+      
+    });
+
+    rendererWorker.postMessage({
       "action": "render"
     });
   }
@@ -885,6 +899,12 @@ export default class Driver {
 
     newRequest.color = new Color();
     newRequest.color.copy(newRequests[i].color);
+
+    newRequest.pixel = new Vector3(
+      newRequests[i].pixel[0], 
+      newRequests[i].pixel[1],
+      newRequests[i].pixel[2]
+    );
 
     return newRequest;
   }
@@ -915,6 +935,15 @@ export default class Driver {
     return newRequests;
    }
 
+   setPixelColor(x, y, color, request, pixel)
+   {
+     pixel.color = color;
+     pixel.element = request;
+     pixel.element.color = color;
+
+     return pixel.color;
+   }
+
   requestSamples(requests) 
   {    
 
@@ -924,17 +953,19 @@ export default class Driver {
     
     for (var i = 0; i < requests.length; i++) 
     { 
-      //console.log(newRequests[5]);
+      
 
       var newRequest = this.getSerializedRequest(newRequests, i);
       var request = requests[i];
-
+      //console.log(request.pixel);
 
       newRequest.color = new Color();
       newRequest.color.copy(newRequests[i].color);
 
       //request.doRaytracing(this.engine, fromRequest, request);
       var c = new Vector3(0, 0, 0);
+      var h = new Vector3(0, 0, 0);
+      var p = new Vector3(0, 0, 0);
       this.messageReceived = false;
 
       var fromRequest = new Vector3(
@@ -955,9 +986,19 @@ export default class Driver {
           c.y = data[1];
           c.z = data[2];
 
-          this.messageReceived = true;
-          request.hit = newRequest.hit;
+          h.x = data[3];
+          h.y = data[4];
+          h.z = data[5];
 
+          p.x = data[6];
+          p.y = data[7];
+
+          var pixel = this.getPixel(p.x, p.y);
+          //console.log(pixel);
+          this.messageReceived = true;
+          //request.hit = newRequest.hit;
+          request.hit = h;
+          //console.log(request.hit);
             // vector to color
             request.color.copy(c.x, c.y, c.z);
 
@@ -973,10 +1014,11 @@ export default class Driver {
 
             //set pixel color to this sample color 
             request.pixel.color = request.color;
-            console.log(request.pixel.color);
+            //this.setPixelColor(p.x, p.y, request.color, request, pixel);
 
             //sample is in use
-            request.inUse = true;          
+            request.inUse = true;         
+             
         }
         //console.log(request.color); works
       }.bind(this);
@@ -986,7 +1028,6 @@ export default class Driver {
     //return requests;
   }
 
-    
 
 	age(amount, items) 
   {

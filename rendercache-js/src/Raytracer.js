@@ -8,6 +8,7 @@ export default class Raytracer {
 	
     constructor(scene) {
 		this.scene = scene;
+        this.hit = new Vector3();
     }
 
     serialize() {
@@ -25,6 +26,17 @@ export default class Raytracer {
         var camera = data.camera;
         var engine = new Raytracer(scene,camera);
         return engine;
+    }
+
+    setHit(hit) {
+        this.hit.x = hit.x;
+        this.hit.y = hit.y;
+        this.hit.z = hit.z;
+
+    }
+
+    getHit() {
+        return this.hit;
     }
 
     trace(rayOrigin, sample) {
@@ -67,6 +79,8 @@ export default class Raytracer {
 
         sample.hit = intersectionPoint.clone();
 		sample.normalDir = intersectionNormal.normalize();
+
+        this.setHit(sample.hit);
 
         var bias = 1e-4;
         var inside = false;

@@ -17,6 +17,7 @@ var fromRequest = new Vector3(0, 0, 0);
 var hit = new Vector3(0, 0, 0);
 var normalDir = new Vector3(0, 0, 0);
 var rayDir = new Vector3(0, 0, 0);
+var pixel = new Vector3(0, 0, 0);
 var newRequest = [];
 
 function rendererMessageHandler(e) {
@@ -55,6 +56,12 @@ function rendererMessageHandler(e) {
         normalDir.z = data[2];
 
     }
+    else if(action == "pixel")
+    {
+        pixel.x = data[0];
+        pixel.y = data[1];
+        pixel.z = data[2];
+    }
     else if(action == "render")
     {
         startRendering();
@@ -70,11 +77,16 @@ function startRendering()
     //console.log(newRequest)
     var rayTracer = new RayTracer(scene);
     var color = rayTracer.trace(fromRequest, newRequest);
+    var newHit = rayTracer.getHit();
+
     //console.log(color)
     // send result buffer
     //var buf8  = new Uint8ClampedArray(buffer);
     postMessage({
         "action": "result",
-        "data": [color.x, color.y, color.z]
+        "data": [color.x, color.y, color.z, 
+                newHit.x, newHit.y, newHit.z,
+                pixel.x, pixel.y
+                ],
     });
 }

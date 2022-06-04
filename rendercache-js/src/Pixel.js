@@ -23,6 +23,11 @@ export default class Pixel {
 	this.resample = false;
 	this.weight = 0.0;
   }
+
+  setColor(color){
+	this.color = color;
+  }
+
   toString() {
 	  return this.x + " " + this.y + " " + (this.element != null) + " " + this.depth + (this.element != null? this.element.hit : "");
   }

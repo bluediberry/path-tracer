@@ -79,12 +79,6 @@ export default class Sample {
       newRequests.rayDir[2]
       );
 
-    var fromRequest = new Vector3(
-      newRequests.rayOrigin[0], 
-      newRequests.rayOrigin[1],
-      newRequests.rayOrigin[2]
-      );
-
     this.color = new Color();
     this.color.copy(newRequests.color);
 
@@ -92,7 +86,11 @@ export default class Sample {
     this.resample = newRequests.resample;
     this.inUse = newRequests.inUse;
 
-    this.pixel = new Pixel();
+    this.pixel = new Vector3(
+      newRequests.pixel[0], 
+      newRequests.pixel[1],
+      newRequests.pixel[2]
+      );
 
 }
 
