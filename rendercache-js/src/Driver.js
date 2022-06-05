@@ -11,7 +11,7 @@ const URGENT = 1;
 const SAMPLED = 2;
 
 export default class Driver {
-  constructor(camera, ratio) {
+  constructor(camera, ratio, colorbuffer, Indexbuffer) {
     this.test = false;
     this.camera = camera;
     this.scene = new Scene();
@@ -19,6 +19,11 @@ export default class Driver {
     this.cache = null;
     this.buffer = null;
     this.addressY = null;
+    this.colorbuffer = colorbuffer;
+    this.Indexbuffer = Indexbuffer;
+
+    this.canvas = document.getElementById("resultCanvas");
+    this.ctx = this.canvas.getContext("2d");
 
     this.cacheSize = 0;
     this.cachePointer = 0;
@@ -70,7 +75,7 @@ export default class Driver {
 			requests: 0 
 		};
 
-    this.jobCount = 1;
+    this.jobCount = 3;
     this.rows = [];
     this.startTime = Date.now();
     this.runTime = Date.now();;
@@ -78,6 +83,7 @@ export default class Driver {
     //this.serializeScene();
 
     this.workers = [];
+    this.worker = 0;
     for(var i=0; i < this.jobCount; i++)
     {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
@@ -86,14 +92,10 @@ export default class Driver {
     this.messageReceived = true;
     this.c = new Vector3(0, 0, 0);
 
-    var canvas = document.getElementById("resultCanvas");
-    this.ctx = canvas.getContext("2d");
+    this.pixelArray = [];
+    this.canAdvance = true;
+    this.index = 0;
 
-    // initialize buffer view
-    var colorDepth = 4;
-    // @ts-ignore
-    var buffer = new ArrayBuffer(camera.scope.x * camera.scope.y * colorDepth);
-    this.colorbuffer = new Uint32Array(buffer);
   }
 
   
@@ -130,6 +132,9 @@ export default class Driver {
       if (frameIndex === 0) {
         this.initializeCache();
       }
+      var from = new Vector3(0, 50, 50);
+      var to = new Vector3(0,0,0);
+      this.camera.updatePosition(from, to);
       this.resetStatistics(frameIndex);
       this.resetBuffer();
       this.reprojectFrame();
@@ -138,7 +143,6 @@ export default class Driver {
       var requests = this.directSamples();
       this.requestSamples(requests);
       this.age(this.ageFactor, this.cache);
-      
       //export information to csv
       this.parse(frameIndex, fps);
      }
@@ -398,6 +402,7 @@ export default class Driver {
 
   resetBuffer() 
   {
+    this.canAdvance = true;
     var counter = this.cacheSize * this.maximumSamplesPerFrameRatio;
     for (var i = 0; i < counter; i++) 
     {
@@ -939,25 +944,22 @@ export default class Driver {
    {
      pixel.color = color;
      pixel.element = request;
-     pixel.element.color = color;
+     pixel.element.color = request.color;
 
-     return pixel.color;
    }
 
   requestSamples(requests) 
   {    
 
 		this.statistics.requests = requests.length;
-
     var newRequests = this.serializeRequests(requests);
-    
-    for (var i = 0; i < requests.length; i++) 
-    { 
-      
+    this.index = 0;
 
+    while (this.index < requests.length) 
+    { 
+      var i = this.index;
       var newRequest = this.getSerializedRequest(newRequests, i);
       var request = requests[i];
-      //console.log(request.pixel);
 
       newRequest.color = new Color();
       newRequest.color.copy(newRequests[i].color);
@@ -974,14 +976,28 @@ export default class Driver {
         newRequests[i].rayOrigin[2]
       );
       
-      this.prepareWorker(this.workers[0], fromRequest, newRequest);
+      //console.log(i%2 === 0);
+      if(i%2 === 0)
+      {
+        //console.log("even");
+        this.worker = 0;
+        this.prepareWorker(this.workers[this.worker], fromRequest, newRequest);
+      }
+      else 
+      {        
+        //console.log("odd");
+        this.worker = 1;
+        this.prepareWorker(this.workers[this.worker], fromRequest, newRequest);
+      }
+      
 
-      this.workers[0].onmessage = function(e) {
+      this.workers[this.worker].onmessage = function(e) {
         var action = e.data.action;
         var data = e.data.data;
-
         if(action == "result")
         {
+          //console.log(this.worker);
+
           c.x = data[0];
           c.y = data[1];
           c.z = data[2];
@@ -1013,21 +1029,36 @@ export default class Driver {
             request.color.b = Math.round(request.color.b * 255);
 
             //set pixel color to this sample color 
+            request.pixel = pixel;
             request.pixel.color = request.color;
-            //this.setPixelColor(p.x, p.y, request.color, request, pixel);
 
             //sample is in use
-            request.inUse = true;         
-             
-        }
-        //console.log(request.color); works
-      }.bind(this);
+            request.inUse = true;     
+            
+            pixel.color = request.color;
+            //pixel.element = request;
 
+            var color = request.color;
+            //console.log(pixel.element.color);
+            this.colorbuffer[
+            this.addressY[this.camera.scope.y - pixel.y] + pixel.x
+            ] =
+            this.alphaChannel | // alpha
+            (color.b << 16) | // blue
+            (color.g << 8) | // green
+            color.r; // red
+        }
+      }.bind(this);
+      this.index++;
      //console.log(request.color); doesnt work
     }
-    //return requests;
+     return requests;  
   }
 
+
+   sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
 	age(amount, items) 
   {
@@ -1063,10 +1094,10 @@ export default class Driver {
 			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
       {
 				pixel = this.getPixel(x + 1, y + 1);
-
 				if (pixel.element != null) 
         {
 					color = pixel.element.color;
+          //console.log(pixel.element.color);
 					colorBuffer[pixelIndex] =
 					this.alphaChannel | // alpha
 					(color.b << 16) | // blue
@@ -1081,12 +1112,34 @@ export default class Driver {
 		}
 	}
 
+  getNewReprojectionFrame(colorBuffer) 
+  {
+		var pixelIndex = 0;
+		var color = new Color();
+		var pixel;
+    var x = 0;
+    var y = 0;
+
+		for (var i = 0; i < this.pixelArray.length; i++, x++, y++) 
+    {
+        color = this.pixelArray[i];
+        pixelIndex = x + (y - 1)*this.camera.scope.x;
+        //console.log(pixel)
+					colorBuffer[pixelIndex] =
+					this.alphaChannel | // alpha
+					(color.b << 16) | // blue
+					(color.g << 8) | // green
+					color.r; // red
+		} 
+	}
+
 	getColorFrame(colorBuffer) 
   {
 		var pixelIndex = 0;
 		var color;
 		var pixel;
-		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+
+    for (var y = this.camera.scope.y - 1; y >= 0; y--) 
     {
 			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
       {
@@ -1097,8 +1150,8 @@ export default class Driver {
 					(color.b << 16) | // blue
 					(color.g << 8) | // green
 					color.r; // red
-			}
-		}
+		  	}
+		  }
 	}
 
 	getPriorityFrame(colorBuffer) 
@@ -1117,6 +1170,7 @@ export default class Driver {
 					pixel.priority; // red
 			}
 		}
+
 	}
 
 	getSamplingFrame(colorBuffer) 

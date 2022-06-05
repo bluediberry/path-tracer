@@ -34,15 +34,16 @@ if(raytrace)
 
 var worker = new Worker("./src/RenderWorker.js", {type: 'module'});
 
-// create driver
-var driver = new Driver(camera, ratio);
-driver.prepare(false);
 
 // initialize buffer view
 var colorDepth = 4;
 // @ts-ignore
 var buffer = new ArrayBuffer(canvas.width * canvas.height * colorDepth);
 var colorbuffer = new Uint32Array(buffer);
+
+// create driver
+var driver = new Driver(camera, ratio, colorbuffer, buffer, canvas, ctx);
+driver.prepare(false);
 
 // image data
 var statsDiv = document.getElementById("resultDiv");
@@ -69,34 +70,28 @@ function animate()
 
 	// camera update requires to be 
 	// done PRIOR to calculation
-	camera.updatePosition(from, to);
+	//camera.updatePosition(from, to);
 
-  //controls.update();
+  	//controls.update();
 	// this is just a minor location update
-	from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
-  //from.y = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
-	from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
+	//from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
+  	//from.y = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
+	//from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
 	angle += 5;
 
-  if(raytrace)
-  {
-  // perform everything for the next frame
-  driver.nextFrame1SPP(frameIndex);
-  }
-  else 
-  {
 	// perform every single step in the rendercache
 	// pipeline for the next frame
-  driver.nextFrame(frameIndex, fps);
-  }
+
+ 	driver.nextFrame(frameIndex, fps);
+
 
 
 	// compute frame data
-	driver.getColorFrame(colorbuffer);
+	//driver.getReprojectionFrame(colorbuffer);
 
 	// copy  buffer to canvas
 	var buf8 = new Uint8ClampedArray(buffer);
-	// var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 	imageData.data.set(buf8);
 	
 	// put in image
@@ -116,5 +111,5 @@ function animate()
 // main program
 var frameIndex = 0;
 var angle = 0;
-window.setInterval(animate,5);
+window.setInterval(animate, 1);
 

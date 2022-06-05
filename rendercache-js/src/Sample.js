@@ -35,6 +35,12 @@ export default class Sample {
     pixel.element = this;
   }
 
+  copy(r, g, b) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+  }
+
   serialize(rayOrigin) {
     var pixel = this.pixel;
     var color = this.color;
