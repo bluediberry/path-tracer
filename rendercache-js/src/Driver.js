@@ -11,7 +11,7 @@ const URGENT = 1;
 const SAMPLED = 2;
 
 export default class Driver {
-  constructor(camera, ratio, colorbuffer, Indexbuffer) {
+  constructor(camera, ratio, colorBuffer) {
     this.test = false;
     this.camera = camera;
     this.scene = new Scene();
@@ -19,11 +19,6 @@ export default class Driver {
     this.cache = null;
     this.buffer = null;
     this.addressY = null;
-    this.colorbuffer = colorbuffer;
-    this.Indexbuffer = Indexbuffer;
-
-    this.canvas = document.getElementById("resultCanvas");
-    this.ctx = this.canvas.getContext("2d");
 
     this.cacheSize = 0;
     this.cachePointer = 0;
@@ -83,7 +78,6 @@ export default class Driver {
     //this.serializeScene();
 
     this.workers = [];
-    this.worker = 0;
     for(var i=0; i < this.jobCount; i++)
     {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
@@ -92,10 +86,16 @@ export default class Driver {
     this.messageReceived = true;
     this.c = new Vector3(0, 0, 0);
 
-    this.pixelArray = [];
-    this.canAdvance = true;
-    this.index = 0;
+    var canvas = document.getElementById("resultCanvas");
+    this.ctx = canvas.getContext("2d");
 
+    // initialize buffer view
+    this.colorDepth = 4;
+    // @ts-ignore
+    this.bufferC = new ArrayBuffer(this.camera.scope.x * this.camera.scope.y * this.colorDepth);
+    this.colorbuffer = new Uint32Array(this.bufferC);
+    this.colorBuffer = colorBuffer;
+    this.counter = 0;
   }
 
   
@@ -132,9 +132,6 @@ export default class Driver {
       if (frameIndex === 0) {
         this.initializeCache();
       }
-      var from = new Vector3(0, 50, 50);
-      var to = new Vector3(0,0,0);
-      this.camera.updatePosition(from, to);
       this.resetStatistics(frameIndex);
       this.resetBuffer();
       this.reprojectFrame();
@@ -143,6 +140,7 @@ export default class Driver {
       var requests = this.directSamples();
       this.requestSamples(requests);
       this.age(this.ageFactor, this.cache);
+      
       //export information to csv
       this.parse(frameIndex, fps);
      }
@@ -402,12 +400,11 @@ export default class Driver {
 
   resetBuffer() 
   {
-    this.canAdvance = true;
     var counter = this.cacheSize * this.maximumSamplesPerFrameRatio;
     for (var i = 0; i < counter; i++) 
     {
       var cacheItem = this.cache[i];
-      if(cacheItem.color === null || cacheItem.age > 35 || cacheItem.pixel === null)      {
+      if(cacheItem.color === null || cacheItem.age > 35)      {
         this.freeCacheItem(cacheItem);
       }
     }
@@ -845,8 +842,12 @@ export default class Driver {
   
 
   
-  prepareWorker(rendererWorker,fromRequest, newRequest)
+  prepareWorker(rendererWorker, fromRequest, newRequest, request, worker)
   {
+
+    var c = new Vector3(0, 0, 0);
+    var h = new Vector3(0, 0, 0);
+    var p = new Vector3(0, 0, 0);
 
     rendererWorker.postMessage({
       "action": "from",
@@ -878,6 +879,61 @@ export default class Driver {
     rendererWorker.postMessage({
       "action": "render"
     });
+
+    rendererWorker.onmessage = function(e) {
+      var action = e.data.action;
+      var data = e.data.data;
+
+      if(action == "result")
+      {
+        c.x = data[0];
+        c.y = data[1];
+        c.z = data[2];
+
+        h.x = data[3];
+        h.y = data[4];
+        h.z = data[5];
+
+        p.x = data[6];
+        p.y = data[7];
+
+        var pixel = this.getPixel(p.x, p.y);
+        //console.log(pixel);
+        //request.hit = newRequest.hit;
+        request.hit = h;
+        //console.log(request.hit);
+          // vector to color
+          request.color.copy(c.x, c.y, c.z);
+
+          // truncate if beyond 1
+          request.color.r = Math.min(1, request.color.r);
+          request.color.g = Math.min(1, request.color.g);
+          request.color.b = Math.min(1, request.color.b);
+
+          // convert pixel to bytes
+          request.color.r = Math.round(request.color.r * 255);
+          request.color.g = Math.round(request.color.g * 255);
+          request.color.b = Math.round(request.color.b * 255);
+
+          //set pixel color to this sample color 
+          request.pixel = pixel;
+          pixel.element = request;
+          request.pixel.color = request.color;
+          pixel.color = request.color;
+          //sample is in use
+          request.inUse = true;  
+          this.counter++;
+          var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y) - (this.camera.scope.x - p.x);
+          this.colorBuffer[pixelIndex] =
+          this.alphaChannel | // alpha
+          (request.color.b << 16) | // blue
+          (request.color.g << 8) | // green
+          request.color.r; // red
+          
+          //console.log("worker: " + worker); 
+
+      }
+    }.bind(this);
   }
 
   getSerializedRequest(newRequests, i)
@@ -940,125 +996,43 @@ export default class Driver {
     return newRequests;
    }
 
-   setPixelColor(x, y, color, request, pixel)
-   {
-     pixel.color = color;
-     pixel.element = request;
-     pixel.element.color = request.color;
-
-   }
-
   requestSamples(requests) 
   {    
 
 		this.statistics.requests = requests.length;
-    var newRequests = this.serializeRequests(requests);
-    this.index = 0;
 
-    while (this.index < requests.length) 
-    { 
-      var i = this.index;
-      var newRequest = this.getSerializedRequest(newRequests, i);
-      var request = requests[i];
+    var newRequests = this.serializeRequests(requests);
+    
+    var worker = 0;
+    var workerLength = this.workers.length;
+
+    for (var i = 0; i < requests.length; i += workerLength) 
+    {     
+
+      for(var j = 0; j < workerLength; j++)
+      {
+      var newRequest = this.getSerializedRequest(newRequests, i + j);
+      var request = requests[i + j];
+      //console.log(request.pixel);
 
       newRequest.color = new Color();
-      newRequest.color.copy(newRequests[i].color);
+      newRequest.color.copy(newRequests[i + j].color);
 
       //request.doRaytracing(this.engine, fromRequest, request);
-      var c = new Vector3(0, 0, 0);
-      var h = new Vector3(0, 0, 0);
-      var p = new Vector3(0, 0, 0);
+
       this.messageReceived = false;
 
       var fromRequest = new Vector3(
-        newRequests[i].rayOrigin[0], 
-        newRequests[i].rayOrigin[1],
-        newRequests[i].rayOrigin[2]
+        newRequests[i + j].rayOrigin[0], 
+        newRequests[i + j].rayOrigin[1],
+        newRequests[i + j].rayOrigin[2]
       );
-      
-      //console.log(i%2 === 0);
-      if(i%2 === 0)
-      {
-        //console.log("even");
-        this.worker = 0;
-        this.prepareWorker(this.workers[this.worker], fromRequest, newRequest);
-      }
-      else 
-      {        
-        //console.log("odd");
-        this.worker = 1;
-        this.prepareWorker(this.workers[this.worker], fromRequest, newRequest);
-      }
-      
-
-      this.workers[this.worker].onmessage = function(e) {
-        var action = e.data.action;
-        var data = e.data.data;
-        if(action == "result")
-        {
-          //console.log(this.worker);
-
-          c.x = data[0];
-          c.y = data[1];
-          c.z = data[2];
-
-          h.x = data[3];
-          h.y = data[4];
-          h.z = data[5];
-
-          p.x = data[6];
-          p.y = data[7];
-
-          var pixel = this.getPixel(p.x, p.y);
-          //console.log(pixel);
-          this.messageReceived = true;
-          //request.hit = newRequest.hit;
-          request.hit = h;
-          //console.log(request.hit);
-            // vector to color
-            request.color.copy(c.x, c.y, c.z);
-
-            // truncate if beyond 1
-            request.color.r = Math.min(1, request.color.r);
-            request.color.g = Math.min(1, request.color.g);
-            request.color.b = Math.min(1, request.color.b);
-
-            // convert pixel to bytes
-            request.color.r = Math.round(request.color.r * 255);
-            request.color.g = Math.round(request.color.g * 255);
-            request.color.b = Math.round(request.color.b * 255);
-
-            //set pixel color to this sample color 
-            request.pixel = pixel;
-            request.pixel.color = request.color;
-
-            //sample is in use
-            request.inUse = true;     
-            
-            pixel.color = request.color;
-            //pixel.element = request;
-
-            var color = request.color;
-            //console.log(pixel.element.color);
-            this.colorbuffer[
-            this.addressY[this.camera.scope.y - pixel.y] + pixel.x
-            ] =
-            this.alphaChannel | // alpha
-            (color.b << 16) | // blue
-            (color.g << 8) | // green
-            color.r; // red
-        }
-      }.bind(this);
-      this.index++;
-     //console.log(request.color); doesnt work
+      //console.log("worker: " + j);
+      this.prepareWorker(this.workers[j], fromRequest, newRequest, request, j);
+      }   
     }
-     return requests;  
   }
 
-
-   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
 	age(amount, items) 
   {
@@ -1094,10 +1068,10 @@ export default class Driver {
 			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
       {
 				pixel = this.getPixel(x + 1, y + 1);
+
 				if (pixel.element != null) 
         {
 					color = pixel.element.color;
-          //console.log(pixel.element.color);
 					colorBuffer[pixelIndex] =
 					this.alphaChannel | // alpha
 					(color.b << 16) | // blue
@@ -1112,34 +1086,12 @@ export default class Driver {
 		}
 	}
 
-  getNewReprojectionFrame(colorBuffer) 
-  {
-		var pixelIndex = 0;
-		var color = new Color();
-		var pixel;
-    var x = 0;
-    var y = 0;
-
-		for (var i = 0; i < this.pixelArray.length; i++, x++, y++) 
-    {
-        color = this.pixelArray[i];
-        pixelIndex = x + (y - 1)*this.camera.scope.x;
-        //console.log(pixel)
-					colorBuffer[pixelIndex] =
-					this.alphaChannel | // alpha
-					(color.b << 16) | // blue
-					(color.g << 8) | // green
-					color.r; // red
-		} 
-	}
-
 	getColorFrame(colorBuffer) 
   {
 		var pixelIndex = 0;
 		var color;
 		var pixel;
-
-    for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
     {
 			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
       {
@@ -1150,8 +1102,8 @@ export default class Driver {
 					(color.b << 16) | // blue
 					(color.g << 8) | // green
 					color.r; // red
-		  	}
-		  }
+			}
+		}
 	}
 
 	getPriorityFrame(colorBuffer) 
@@ -1170,7 +1122,6 @@ export default class Driver {
 					pixel.priority; // red
 			}
 		}
-
 	}
 
 	getSamplingFrame(colorBuffer) 
