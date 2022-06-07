@@ -275,6 +275,16 @@ export default class Driver {
     {
       this.cache[i] = new Sample();
     }
+
+    var pixelIndex = 0;
+		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+    {
+			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+      {
+				this.colorBuffer[pixelIndex] = this.blackColorInt;
+			}
+		}
+
   }
 
   allocCacheItem(pixel) 
@@ -922,7 +932,6 @@ export default class Driver {
           pixel.color = request.color;
           //sample is in use
           request.inUse = true;  
-          this.counter++;
           var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y) - (this.camera.scope.x - p.x);
           this.colorBuffer[pixelIndex] =
           this.alphaChannel | // alpha
@@ -931,8 +940,11 @@ export default class Driver {
           request.color.r; // red
           
           //console.log("worker: " + worker); 
-
       }
+    /*  if(this.counter == 15000){
+        this.counter = 0;
+        this.getColorFrame(this.colorBuffer);
+      }*/
     }.bind(this);
   }
 
@@ -1011,24 +1023,29 @@ export default class Driver {
 
       for(var j = 0; j < workerLength; j++)
       {
-      var newRequest = this.getSerializedRequest(newRequests, i + j);
-      var request = requests[i + j];
-      //console.log(request.pixel);
+      
+        if(i + j < requests.length)
+        {
+          var newRequest = this.getSerializedRequest(newRequests, i + j);
+          var request = requests[i + j];
+          //console.log(request.pixel);
+    
+          newRequest.color = new Color();
+          newRequest.color.copy(newRequests[i + j].color);
+    
+          //request.doRaytracing(this.engine, fromRequest, request);
+    
+          this.messageReceived = false;
+    
+          var fromRequest = new Vector3(
+            newRequests[i + j].rayOrigin[0], 
+            newRequests[i + j].rayOrigin[1],
+            newRequests[i + j].rayOrigin[2]
+          );
+          //console.log("worker: " + j);
+          this.prepareWorker(this.workers[j], fromRequest, newRequest, request, j);
+        }
 
-      newRequest.color = new Color();
-      newRequest.color.copy(newRequests[i + j].color);
-
-      //request.doRaytracing(this.engine, fromRequest, request);
-
-      this.messageReceived = false;
-
-      var fromRequest = new Vector3(
-        newRequests[i + j].rayOrigin[0], 
-        newRequests[i + j].rayOrigin[1],
-        newRequests[i + j].rayOrigin[2]
-      );
-      //console.log("worker: " + j);
-      this.prepareWorker(this.workers[j], fromRequest, newRequest, request, j);
       }   
     }
   }
