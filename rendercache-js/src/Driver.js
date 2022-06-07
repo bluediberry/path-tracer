@@ -2,33 +2,20 @@ import Sample from "./Sample.js";
 import Pixel from "./Pixel.js";
 import Color from "./Color.js";
 import Vector3 from "./Vector3.js";
-import Scene from "./Scene2.js";
-import RayTracer from "./Raytracer.js";
-import Camera from "./Camera.js";
-
 
 const INTERPOLATED = 0;
 const URGENT = 1;
 const SAMPLED = 2;
 
 export default class Driver {
-  constructor(ratio, rendererWidth, rendererHeight, camera) {
+  constructor(engine, camera, ratio) {
+    this.test = false;
+    this.camera = camera;
+    this.engine = engine;
+
     this.cache = null;
     this.buffer = null;
     this.addressY = null;
-    this.test = false;
-    this.camera = camera;
-    this.rendererHeight = rendererHeight;
-    this.rendererWidth = rendererWidth;
-
-    // create camera
-    var from = new Vector3(0, 50, 50);
-    var to = new Vector3(0,0,0);
-      
-    //this.camera.updatePosition(from, to);
-
-    this.scene = new Scene();
-    this.engine = new RayTracer(this.scene, this.camera);
 
     this.cacheSize = 0;
     this.cachePointer = 0;
@@ -37,7 +24,7 @@ export default class Driver {
 
 	  this.initialFill = 0.2;
     this.maximumSamplesPerFrameRatio = 1/ratio;
-    this.maximumSamplesPerFrame = this.rendererWidth * this.rendererHeight * this.maximumSamplesPerFrameRatio;
+    this.maximumSamplesPerFrame = this.camera.scope.x * this.camera.scope.y * this.maximumSamplesPerFrameRatio;
     this.interpolationRandom = 5;
     this.interpolationZero = 20;
 
@@ -86,12 +73,8 @@ export default class Driver {
     {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
     }*/
+    this.fps = 0;
 
-    //this.worker = new Worker("./RenderWorker.js", {type: 'module'});
-
-    this.rows = [];
-    this.startTime = Date.now();
-    this.runTime = Date.now();;
   }
 
   prepare(isTest) {
@@ -106,10 +89,9 @@ export default class Driver {
 	resetStatistics(frameIndex) {
 		this.frameIndex = frameIndex;
 		this.statistics.cacheUsage = 0.0;	  
-    //console.log("reset statistics");
   	}
 
-  nextFrame(frameIndex, fps) {
+  nextFrame(frameIndex) {
     if (this.test) {
       this.initializeCacheWithEntireFrame();
     } else {
@@ -124,9 +106,9 @@ export default class Driver {
       var requests = this.directSamples();
       this.requestSamples(requests);
       this.age(this.ageFactor, this.cache);
-      
+
       //export information to csv
-      this.parse(frameIndex, fps);
+      this.parse(frameIndex, this.fps);
      }
   }
 
@@ -137,8 +119,6 @@ export default class Driver {
       if (frameIndex === 0) {
         this.initializeCache();
       }
-      this.reprojectFrame();
-      this.depthCulling();
       this.fillGaps();
       var requests = this.directSamples();
       this.requestSamples(requests);
@@ -179,7 +159,7 @@ export default class Driver {
     
     //if frameIndex is a certain value then export file
     if(frameIndex === 150){
-      //this.exportToCsv("file", this.rows);
+     // this.exportToCsv("file", this.rows);
     }
   }
 
@@ -223,9 +203,7 @@ export default class Driver {
         }
     }
 }
-
-  getPixel(x, y) 
-  {
+  getPixel(x, y) {
     return this.buffer[this.addressY[y] + x];
   }
 
@@ -235,8 +213,8 @@ export default class Driver {
 
 		var index = 0;
 		var x, y;
-		var maxX = this.rendererWidth + 1;
-		var maxY = this.rendererHeight + 1;
+		var maxX = this.camera.scope.x + 1;
+		var maxY = this.camera.scope.y + 1;
 		for (y = 0; y <= maxY; y++) {
 			this.addressY[y] = index;
 			for (x = 0; x <= maxX; x++) {
@@ -250,9 +228,6 @@ export default class Driver {
 			index++;
 			}
 		}
-    //console.log(this.addressY[200]);
-
-    console.log("allocated buffers");
   	}
 
   allocCache() 
@@ -263,7 +238,6 @@ export default class Driver {
     {
       this.cache[i] = new Sample();
     }
-    console.log("allocated cache");
   }
 
   allocCacheItem(pixel) 
@@ -342,7 +316,7 @@ export default class Driver {
     requests.push(cacheItem);
   }
 
-  initializeCache(worker) 
+  initializeCache() 
   {
     var iterations = 0;
     var cacheUsage = 0.0;
@@ -353,12 +327,12 @@ export default class Driver {
       var requests = [];
       for (var i = 0; i < this.maximumSamplesPerFrame; i++) 
       {
-        var x = Math.round(Math.random() * (this.rendererWidth - 1));
-        var y = Math.round(Math.random() * (this.rendererHeight - 1));
+        var x = Math.round(Math.random() * (this.camera.scope.x - 1));
+        var y = Math.round(Math.random() * (this.camera.scope.y - 1));
         var pixel = this.getPixel(x, y);
         this.addRequest(requests, pixel);
       }
-      this.requestSamples(requests, worker);
+      this.requestSamples(requests);
       this.age(this.ageFactor, requests);
       //console.log("Cache usage: " + cacheUsage * 100.0);
       cacheUsage += this.maximumSamplesPerFrameRatio;
@@ -367,8 +341,6 @@ export default class Driver {
 		this.statistics.startingCacheUsage = cacheUsage * 100.0;
 		this.statistics.iterationsToFill = iterations;
     //console.log(iterations + " iterations to fill " + cacheUsage * 100.0 + "% of cache");
-    console.log("initialized cache");
-
   }
 
 
@@ -389,18 +361,31 @@ export default class Driver {
 		this.age(this.ageFactor, requests);
 	}
 
-  resetBuffer() 
-  {
-    var counter = this.cacheSize * this.maximumSamplesPerFrameRatio;
-    for (var i = 0; i < counter; i++) 
+  resetBuffer() {
+
+ /* for (var y = 1; y <= this.camera.scope.y; y++)
+   {
+      for (var x = 1; x <= this.camera.scope.x; x++) 
+      {
+        var pixel = this.getPixel(x, y);
+        pixel.depth = this.depthThreshold;
+        if(pixel.age > -1)
+        {
+          this.freeCacheItem(pixel.element);
+
+        }
+		    pixel.element = null;
+      }
+    }*/
+
+    for (var i = 0; i < this.cacheSize; i++) 
     {
       var cacheItem = this.cache[i];
-      if(cacheItem.color === null || cacheItem.age > 35 || cacheItem.pixel === null)      
+      if(cacheItem.color === null || cacheItem.age > 25 || cacheItem.resample === true || cacheItem.pixel === null)
       {
-        this.freeCacheItem(cacheItem);
+        //««this.freeCacheItem(cacheItem);
       }
     }
-    //console.log("reset buffer");
   }
 
   detachFrameFromCache() 
@@ -411,7 +396,6 @@ export default class Driver {
 			for (var x = 1; x <= this.camera.scope.x; x++) 
       {
 				var pixel = this.getPixel(x, y);
-        //console.log("here")
 				pixel.sample = false;
 				// set depth to maximum
 				pixel.depth = this.depthThreshold;
@@ -419,13 +403,12 @@ export default class Driver {
 				pixel.element = null;
 			}
 		}
-    //console.log("detached frame");
-
 	}
 
   reprojectFrame() 
   {
     this.detachFrameFromCache();
+
     // define a result structure
     var result = { x: null, y: null, depth: this.depthThreshold };
 
@@ -450,6 +433,7 @@ export default class Driver {
 					) {
 						// get pixel for x,y
 						var pixel = this.getPixel(result.x, result.y);
+						
 						// new reprojection depth is smaller than pixel depth?
 						if (result.depth < pixel.depth) {
 							
@@ -490,8 +474,6 @@ export default class Driver {
 				}
 			}
 		}
-   // console.log("reprojected frame");
-
 	}
 
   depthCulling() 
@@ -499,9 +481,9 @@ export default class Driver {
     var depthMin = 0.9;
     var depthMax = 1.1;
 
-    for (var y = 1; y <= this.rendererHeight; y++) 
+    for (var y = 1; y <= this.camera.scope.y; y++) 
     {
-      for (var x = 1; x <= this.rendererWidth; x++) 
+      for (var x = 1; x <= this.camera.scope.x; x++) 
       {				
         // for every pixel
         var pixel = this.getPixel(x, y);
@@ -544,7 +526,7 @@ export default class Driver {
 							// a depth descontinuity exists between neighborhood
 							// and center pixel so strongly age cache item
               cacheItem.age += (this.ageFactor * 10);
-              /*if(cacheItem.age > 35){
+             /* if(cacheItem.age > 35){
                 this.freeCacheItem(cacheItem);
               }*/
               //cacheItem.element = null;
@@ -578,13 +560,26 @@ export default class Driver {
     //this.numberOfSamples = 0;
     var completeness = 0;
 
+    // Now that depth are consistent (from depth culling)
+    // atribute colors from existing cacheItems to the
+    // corresponding pixels
+    /*for (var y = 1; y <= this.camera.scope.y; y++) {
+      for (var x = 1; x <= this.camera.scope.x; x++) {
+        var pixel = this.getPixel(x, y);
+        var cacheItem = pixel.element;
+        if (cacheItem) {
+          cacheItem.color = pixel.color;
+          //pixel.color = cacheItem.color;
+        } 
+      }
+    }*/
+
     // Interpolate color values to aproximate empty
     // pixels (that is pixels with no attached cache item)
     for (var y = 1; y <= this.camera.scope.y; y++) 
     {
       for (var x = 1; x <= this.camera.scope.x; x++) 
       {
-       // if(y % 2 === 0 || x % 2 === 0){
         var centerPixel = this.getPixel(x, y);
         // pixel has no data?
         if (centerPixel.element === null) 
@@ -611,14 +606,14 @@ export default class Driver {
                 itemWeight = 2; //colinear
               }
                 weight += pixel.weight;
-                if (pixel.element !== null && pixel.color !== null) 
+                if (pixel.element) 
                 {
                   color.addMult(pixel.color, itemWeight);
                   age += pixel.element.age;
                   colorWeight += itemWeight;
                   colorItems++;
                 }    
-           }
+          }
         }
 			
 			if (colorItems > 0) 
@@ -630,9 +625,7 @@ export default class Driver {
 				// Get a priority based on how many of
 				// their immediate neighbors had a cache item
 				centerPixel.priority = (age/colorItems);
-				centerPixel.priority += (this.interpolationZero 
-                                + (weight - colorItems) 
-                                * this.interpolationRandom);
+				centerPixel.priority += (this.interpolationZero + (weight - colorItems) * this.interpolationRandom);
         centerPixel.priority = Math.round(centerPixel.priority);
 
 				this.priorities[INTERPOLATED][centerPixel.priority]++;
@@ -663,164 +656,107 @@ export default class Driver {
             totalPriority += centerPixel.priority;
             //this.numberOfSamples++;
           }
+
           this.priorities[SAMPLED][centerPixel.priority]++;
           completeness += 1.0; 
         }
         // Add to total frame priority
-     // }
+      }
     }
-  }
 
 		// by this time all pixels are mapped to the render cache
 		this.statistics.completeness = 100.0 * (completeness / (this.camera.scope.x * this.camera.scope.y));
 		this.statistics.totalPriority = totalPriority;
   }
 
-/////////////////////////////////////////////////////////////////////////////
-  fillGapsNew() 
-  {
+  /*directSamples() {
+    var threshold = this.priorityMax;
+    var count = this.priorities[URGENT][threshold];
+    var test;
 
-    // Reset priority data
-    for (var j = 0; j < this.priorityLevels; j++) 
+    while (count < this.maximumSamplesPerFrame) {
+      test = this.priorities[INTERPOLATED][threshold] + this.priorities[SAMPLED][threshold];
+       // console.log(this.priorities[SAMPLED][threshold]);
+
+      count += test;
+      if (count < this.maximumSamplesPerFrame) {
+        threshold = threshold - 2;
+      }
+    }
+    var sizeFactor = 1;
+    if (threshold === this.priorityMax) 
     {
-      this.priorities[INTERPOLATED][j] = 0; 
-      this.priorities[URGENT][j] = 0; 
-      this.priorities[SAMPLED][j] = 0;
+      sizeFactor = Math.floor(count / this.maximumSamplesPerFrame);
+      if (sizeFactor < 1.2) sizeFactor = 1.0;
     }
 
-    // Reset Floyd-steinberg
-    // threshold data values
-    var totalPriority = 0;
-    //this.numberOfSamples = 0;
-    var completeness = 0;
-
-  
-     //console.log(rayOrigin);
-     //   
-    // Interpolate color values to aproximate empty
-    // pixels (that is pixels with no attached cache item)
-       // if(y % 2 === 0 || x % 2 === 0){
-
-        var coords = [];
-        for (var y = 1; y <= this.camera.scope.y; y++) 
+    var occurence = 0;
+    var requests = new Array();
+    threshold = (threshold*this.maximumSamplesPerFrameRatio);
+    for (var y = 1; y <= this.camera.scope.y; y++)  
+    {
+      if (y % 2 === 0) 
+      {
+        for (var x = 1; x <= this.camera.scope.x; x++) 
         {
-          for (var x = 1; x <= this.camera.scope.x; x++) 
-          { 
-            var centerPixel = this.getPixel(x, y);
-            coords.push(centerPixel.toString());
+          var pixel = this.getPixel(x, y);
+
+          if (pixel.priority >= 0) 
+          {
+            if (occurence >= sizeFactor) 
+            {
+              occurence = occurence - sizeFactor;
+              this.addRequest(requests, pixel);
+              //this.distributeHalfPriority(pixel, threshold, x, y, +1, 1);
+              this.distributeHalfPriority(pixel, threshold, x, y, 1, 1);
+
+              //pixel.sample = true;
+            } 
+            else 
+            {
+              occurence = occurence + 1.0;
+            }
+            
+          } 
+          else 
+          {
+            pixel.sample = false;
           }
         }
-
-     var p = new Parallel(coords);
-
-      function getPixel(result) {
-        return this.buffer[this.addressY[result[1]] + result[0]];
-      };
-     p.require(getPixel);
-     p.require(Color);
-     p.require(Pixel);
-
-     p.spawn(function (center) {
-      var priorities = [];
-
-     // console.log(centerPixel[3]);
-        for( var k = 0; k < center.length; k++){
-             // pixel has no data?
-          var centerPixel = new Pixel();
-          const result = center[k].split(/[, ]+/);
-
-         // console.log(i); // 👉️ ['one', 'two', 'three']
-          centerPixel.x = parseInt(result[0]);
-          centerPixel.y = parseInt(result[1]);
-          centerPixel.color = new Color(parseInt(result[2]));
-
-         // console.log(centerPixel);
-          var age = 0;
-          var weight = 0;
-          var colorItems = 0;
-          var colorWeight = 0;
-          var color = new Color();
-          var itemWeight;
-
-          //console.log(centerPixel);
-        for (var i = -1; i <= 1; i++) 
-        {
-          for (var j = -1; j <= 1; j++) 
-          {
-              //var pixel = this.getPixel(x + i, y + j);
-              var pixel = new Pixel();
-              var result2 = center[k + 1].split(/[, ]+/);
-              pixel.x = parseInt(result2[0]);
-              pixel.y = parseInt(result2[1]);
-              pixel.element = parseInt(result2[5]);
-              pixel.color = new Color(parseInt(result2[2]));
-              //console.log(pixel);
-              if(i !== 0 && j !== 0)
-              {
-                itemWeight = 1; //corner
-              }
-              else 
-              {
-                itemWeight = 2; //colinear
-              }
-                weight += pixel.weight;
-                if (pixel.element) 
-                {
-                  color.addMult(pixel.color, itemWeight);
-                  age += pixel.element.age;
-                  colorWeight += itemWeight;
-                  colorItems++;
-                }    
-           }
-        }
-        //console.log(colorItems);
-        
-			if (colorItems > 0) 
-      {
-				centerPixel.color.r = Math.floor(color.r/colorWeight);
-				centerPixel.color.g = Math.floor(color.g/colorWeight);
-				centerPixel.color.b = Math.floor(color.b/colorWeight);
-				// Get a priority based on how many of
-				// their immediate neighbors had a cache item
-				centerPixel.priority = (age/colorItems);
-        
-				centerPixel.priority += (20
-                                + (weight - colorItems) 
-                                * 5);
-                               
-        centerPixel.priority = Math.round(centerPixel.priority);
-         console.log(centerPixel);
-				priorities[INTERPOLATED][centerPixel.priority]++;
-        
-				//totalPriority += centerPixel.priority;
-        
-				//this.numberOfSamples++;
-
-			} 
+      } 
       else 
-      {
-				centerPixel.color.clear();
+      {    
+        for (var x = this.camera.scope.x; x >= 0; x--)
+        //for (var x = 1; x <= this.camera.scope.x; x++) 
+        {
+          var pixel = this.getPixel(x, y);
 
-				// A pixel without a point and whose neighbors
-				// also do not have a point are given the
-				// maximum priority (priorityMax) - 255
-				centerPixel.priority = this.priorityMax;
-				priorities[URGENT][centerPixel.priority]++;
-				totalPriority += centerPixel.priority;
-				//this.numberOfSamples++;
-			}
-         
-		}
-        // Add to total frame priority
-     // }
-		// by this time all pixels are mapped to the render cache
-		this.statistics.completeness = 100.0 * (completeness / (this.camera.scope.x * this.camera.scope.y));
-		this.statistics.totalPriority = totalPriority;
+          if (pixel.priority >= threshold) 
+          {
+            if (occurence >= sizeFactor) 
+            {
+              occurence = occurence - sizeFactor;
+              this.addRequest(requests, pixel);
+              //this.distributeHalfPriority(pixel, threshold, x, y, -1, 1);
+              this.distributeHalfPriority(pixel, threshold, x, y, -1, 1);
 
-    return priorities;
-  });
- return this.priorities;
-  }
+              //pixel.sample = true;
+            } 
+            else 
+            {
+              occurence = occurence + 1.0;
+            }
+            
+          } 
+          else 
+          {
+            pixel.sample = false;
+          }
+        }
+      }
+    }
+    return requests;
+  }*/
 
   directSamples() 
   {
@@ -831,313 +767,306 @@ export default class Driver {
 
     if (this.logPriorityBuffers) 
     {
-  var interpolated = "";
-  var urgent = "";
-  var sampled = "";
-  for (var level = 0; level < this.priorityLevels; level++) 
-  {
-  interpolated += " " + this.priorities[INTERPOLATED][level];
-  urgent += " " + this.priorities[URGENT][level];
-  sampled += " " + this.priorities[SAMPLED][level];
-  }
+      var interpolated = "";
+      var urgent = "";
+      var sampled = "";
+      for (var level = 0; level < this.priorityLevels; level++) 
+      {
+      interpolated += " " + this.priorities[INTERPOLATED][level];
+      urgent += " " + this.priorities[URGENT][level];
+      sampled += " " + this.priorities[SAMPLED][level];
+      }
 
-  console.log("Interpolated " + interpolated);
-  console.log("Urgent " + urgent);
-  console.log("sampled " + sampled);
-}
+      console.log("Interpolated " + interpolated);
+      console.log("Urgent " + urgent);
+      console.log("sampled " + sampled);
+    }
 
-// get the lowest priority that accumulate
-// samples that can be requested for a single frame
-for (var i = this.priorityMax; i >= 0; i--) 
-{
-    var test =
-    this.priorities[URGENT][i] +
-    this.priorities[INTERPOLATED][i] +
-    this.priorities[SAMPLED][i];
+		// get the lowest priority that accumulate
+		// samples that can be requested for a single frame
+    for (var i = this.priorityMax; i >= 0; i--) 
+    {
+        var test =
+        this.priorities[URGENT][i] +
+        this.priorities[INTERPOLATED][i] +
+        this.priorities[SAMPLED][i];
 
-  if (samples === null) 
-  {
-    samples = test;
-    test = 0;
-  }
+      if (samples === null) 
+      {
+        samples = test;
+        test = 0;
+      }
 
-  if (samples + test > this.maximumSamplesPerFrame) 
-  {
-    threshold = i;
-    //threshold = threshold - 2;
-    samples += test;
-    break;
-  }
-  else 
-  {
-    samples += test
-  }
-}
-//threshold = (threshold*this.maximumSamplesPerFrameRatio);
-
-// default assume one request per sample to be performed
-var requestFactor = 1.0;
-// but the number of samples to request can be larger than the
-// maximum requests per frame, so determine the factor 
-// of samples to request
-requestFactor = samples / this.maximumSamplesPerFrame;
-// if (requestFactor < 1.2) requestFactor = 1.0;
-
-this.statistics.threshold = threshold;
-this.statistics.requestFactor = requestFactor;
-
-var candidate = [];
-var index = 0;
-// for every row
-for (var y = 1; y <= this.camera.scope.y; y++) 
-{			
-  // depending on even-odd number
-  if (y % 2 == 0) 
-  {
-    // traverse x ascending
-    for (var x = 1; x <= this.camera.scope.x; x++) {
-      var pixel = this.getPixel(x, y);
-      // pixel priority high? 
-      if (pixel.priority >= threshold) {
-          // add to candidate requests
-          candidate[index] = 
-          {
-            pixel: pixel,
-            x: x,
-            y: y,
-            xRelative: 1,
-            yRelative: 1,
-          };
-          index++;
+      if (samples + test > this.maximumSamplesPerFrame) 
+      {
+        threshold = i;
+        //threshold = threshold - 2;
+	    	samples += test;
+        break;
+      }
+      else 
+      {
+        samples += test
       }
     }
-  }
-  else 
-  {
-      // traverse x descending
-      // @ts-ignore
-      for (var x = this.camera.scope.x; x > 0; x--) {
-        var pixel = this.getPixel(x, y);
-        // pixel priority high? 
-        if (pixel.priority >= threshold) {
-          // add to candidate requests
-          candidate[index] = {
-            pixel: pixel,
-            x: x,
-            y: y,
-            xRelative: -1,
-            yRelative: 1,
-          };
-          index++;
+    //threshold = (threshold*this.maximumSamplesPerFrameRatio);
+
+		// default assume one request per sample to be performed
+		var requestFactor = 1.0;
+		// but the number of samples to request can be larger than the
+		// maximum requests per frame, so determine the factor 
+		// of samples to request
+		requestFactor = samples / this.maximumSamplesPerFrame;
+		// if (requestFactor < 1.2) requestFactor = 1.0;
+
+		this.statistics.threshold = threshold;
+		this.statistics.requestFactor = requestFactor;
+		
+		var candidate = [];
+		var index = 0;
+		// for every row
+    for (var y = 1; y <= this.camera.scope.y; y++) 
+    {			
+      // depending on even-odd number
+      if (y % 2 == 0) 
+      {
+        // traverse x ascending
+        for (var x = 1; x <= this.camera.scope.x; x++) {
+          var pixel = this.getPixel(x, y);
+          // pixel priority high? 
+          if (pixel.priority >= threshold) {
+              // add to candidate requests
+              candidate[index] = 
+              {
+                pixel: pixel,
+                x: x,
+                y: y,
+                xRelative: 1,
+                yRelative: 1,
+              };
+              index++;
+          }
         }
       }
-    }
- }
+      else 
+      {
+          // traverse x descending
+          for (var x = this.camera.scope.x; x > 0; x--) {
+            var pixel = this.getPixel(x, y);
+            // pixel priority high? 
+            if (pixel.priority >= threshold) {
+              // add to candidate requests
+              candidate[index] = {
+                pixel: pixel,
+                x: x,
+                y: y,
+                xRelative: -1,
+                yRelative: 1,
+              };
+              index++;
+            }
+          }
+        }
+     }
 
-this.statistics.candidates = candidate.length;
+    this.statistics.candidates = candidate.length;
 
-index = 0;
-var lastI = null;
-var requests = [];
-// for each candidate request
-while (index < candidate.length) 
-{
-  // get index
-  var i = Math.round(index);
-  // is a new index?
-  if (lastI === null || (lastI !== null && lastI !== i)) 
-  {
-    // is index within candidate list?
-    if (i < candidate.length) 
+    index = 0;
+    var lastI = null;
+    var requests = [];
+		// for each candidate request
+		while (index < candidate.length) 
     {
-      var item = candidate[i];
-      // add to effective request
-      this.addRequest(requests, item.pixel);
-      // distribute the high pixel priority
-      this.distributeExceedingPriority(
-        pixel,
-        threshold,
-        item.x,
-        item.y,
-        item.xRelative,
-        item.yRelative
-      );
+			// get index
+			var i = Math.round(index);
+			// is a new index?
+			if (lastI === null || (lastI !== null && lastI !== i)) 
+      {
+				// is index within candidate list?
+				if (i < candidate.length) 
+        {
+					var item = candidate[i];
+					// add to effective request
+					this.addRequest(requests, item.pixel);
+					// distribute the high pixel priority
+					this.distributeExceedingPriority(
+						pixel,
+						threshold,
+						item.x,
+						item.y,
+						item.xRelative,
+						item.yRelative
+					);
+				}
+			}
+			lastI = i;
+			index += requestFactor;
+		}
+	return requests;
+}
+
+  distributeExceedingPriority(pixel, threshold, x, y, xRelative, yRelative) 
+  {
+    // compute half exceeding priority
+    var half = Math.floor((pixel.priority - threshold) / 2.0);
+    if (half >= 0) 
+    {
+      // exists? distribute for these pixels
+      this.getPixel(x + xRelative, y).priority += half;
+      this.getPixel(x, y + yRelative).priority += half;
     }
   }
-  lastI = i;
-  index += requestFactor;
-}
-return requests;
-}
-
-distributeExceedingPriority(pixel, threshold, x, y, xRelative, yRelative) 
-{
-// compute half exceeding priority
-var half = Math.floor((pixel.priority - threshold) / 2.0);
-if (half >= 0) 
-{
-  // exists? distribute for these pixels
-  this.getPixel(x + xRelative, y).priority += half;
-  this.getPixel(x, y + yRelative).priority += half;
-}
-}
-
-
-requestSamples(requests, worker) 
-{    
-
-  this.statistics.requests = requests.length;
-  var camera = function (n) { return this.camera.from; };
-
-  // @ts-ignore
-  /*var p = new Parallel(request, {
-    env: {
-        a: camera
-    },
-    envNamespace: 'camera'
-  }, {maxWorkers: 1});*/
-
-  //p.require(requests);
-  //p.require(camera);
-  //p.require(this.engine);
-
-
-  for (var i = 0; i < requests.length; i++) 
-  {  
-    var request = requests[i];
-
-    //console.log(requests[5]);
-  // p.spawn(request => 
-  //{
-    if (request.resample) 
-    {
-      this.camera.computeDirToHit(request);
-    } 
-    else 
-    {
-      this.camera.computeDirToPixel(request);
-    }
-    //make parallel here?
-    request = request.doRaytracing(this.engine, this.camera.from, request);
   
-    // return request;
-    //});
-    
-  }
 
-}
-
-
-
-age(amount, items) 
-{
-for (var i = 0; i < items.length; i++) 
-{
-      items[i].age += amount;
-  }
-}
-
-
-getCacheUsage() 
-{
-var used = 0.0;
-for (var i = 0; i < this.cacheSize; i++) 
-{
-    if (this.cache[i].pixel !== null) used++;
-}
-return used / this.cacheSize;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Frame drawing
-//
-/////////////////////////////////////////////////////////////////////////////
-getReprojectionFrame(colorBuffer) 
-{
-var pixelIndex = 0;
-var color;
-var pixel;
-for (var y = this.camera.scope.y - 1; y >= 0; y--) 
-{
-  for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+  requestSamples(requests) 
   {
-    pixel = this.getPixel(x + 1, y + 1);
+		this.statistics.requests = requests.length;
 
-    if (pixel.element !== null && pixel.element.color !== null) 
+    for (var i = 0; i < requests.length; i++) 
     {
-      color = pixel.element.color;
-      colorBuffer[pixelIndex] =
-      this.alphaChannel | // alpha
-      (color.b << 16) | // blue
-      (color.g << 8) | // green
-      color.r; // red
-    } 
-    else 
-    {
-      colorBuffer[pixelIndex] = this.blackColorInt;
+      var request = requests[i];
+      if(request.pixel !== null)
+      {
+      if (request.resample) 
+      {
+        this.camera.computeDirToHit(request);
+      } 
+      else 
+      {
+        this.camera.computeDirToPixel(request);
+      }
+      //make parallel here?
+       request = request.doRaytracing(this.engine, this.camera.from, request);
+     
+       //var e = JSON.parse(JSON.stringify(this.engine));
+       //var c = JSON.parse(JSON.stringify(this.camera));
+       //var r = JSON.parse(JSON.stringify(request));
+       /*var data = {
+        engine: this.engine,
+        camera: this.camera,
+        request: request,
+      };*/
+
+
+     /*  this.worker.onmessage = function(e) {
+        request = e.data.request;
+        }.bind(request);
+
+        this.worker.postMessage(request);*/
+
+      }
     }
   }
-}
-}
 
-getColorFrame(colorBuffer) 
-{
-var pixelIndex = 0;
-var color;
-var pixel;
-for (var y = this.camera.scope.y - 1; y >= 0; y--) 
-{
-  for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+	age(amount, items) 
   {
-    pixel = this.getPixel(x + 1, y + 1);
-    color = pixel.color;
-    colorBuffer[pixelIndex] =
-      this.alphaChannel | // alpha
-      (color.b << 16) | // blue
-      (color.g << 8) | // green
-      color.r; // red
-  }
-}
-}
-
-getPriorityFrame(colorBuffer) 
-{
-var pixelIndex = 0;
-var pixel;
-for (var y = this.camera.scope.y - 1; y >= 0; y--) 
-{
-  for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
-  {
-    pixel = this.getPixel(x + 1, y + 1);
-    colorBuffer[pixelIndex] =
-      this.alphaChannel | // alpha
-      (pixel.priority << 16) | // blue
-      (pixel.priority << 8) | // green
-      pixel.priority; // red
-  }
-}
-}
-
-getSamplingFrame(colorBuffer) 
-{
-var pixelIndex = 0;
-var pixel;
-for (var y = this.camera.scope.y - 1; y >= 0; y--) 
-{
-  for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
-  {
-    pixel = this.getPixel(x + 1, y + 1);
-
-    if (pixel.sample === true) 
+		for (var i = 0; i < items.length; i++) 
     {
-      colorBuffer[pixelIndex] = this.whiteColorInt;
-    } 
-    else 
+      		items[i].age += amount;
+    	}
+	}
+
+
+  getCacheUsage() 
+  {
+    var used = 0.0;
+    for (var i = 0; i < this.cacheSize; i++) 
     {
-      colorBuffer[pixelIndex] = this.blackColorInt;
+        if (this.cache[i].pixel !== null) used++;
     }
+    return used / this.cacheSize;
   }
-}
-}
+
+  /////////////////////////////////////////////////////////////////////////////
+  //
+  // Frame drawing
+  //
+  /////////////////////////////////////////////////////////////////////////////
+	getReprojectionFrame(colorBuffer) 
+  {
+		var pixelIndex = 0;
+		var color;
+		var pixel;
+		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+    {
+			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+      {
+				pixel = this.getPixel(x + 1, y + 1);
+
+				if (pixel.element != null) 
+        {
+					color = pixel.element.color;
+					colorBuffer[pixelIndex] =
+					this.alphaChannel | // alpha
+					(color.b << 16) | // blue
+					(color.g << 8) | // green
+					color.r; // red
+				} 
+				else 
+        {
+					colorBuffer[pixelIndex] = this.blackColorInt;
+				}
+			}
+		}
+	}
+
+	getColorFrame(colorBuffer) 
+  {
+		var pixelIndex = 0;
+		var color;
+		var pixel;
+		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+    {
+			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+      {
+				pixel = this.getPixel(x + 1, y + 1);
+				color = pixel.color;
+				colorBuffer[pixelIndex] =
+					this.alphaChannel | // alpha
+					(color.b << 16) | // blue
+					(color.g << 8) | // green
+					color.r; // red
+			}
+		}
+	}
+
+	getPriorityFrame(colorBuffer) 
+  {
+		var pixelIndex = 0;
+		var pixel;
+		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+    {
+			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+      {
+				pixel = this.getPixel(x + 1, y + 1);
+				colorBuffer[pixelIndex] =
+					this.alphaChannel | // alpha
+					(pixel.priority << 16) | // blue
+					(pixel.priority << 8) | // green
+					pixel.priority; // red
+			}
+		}
+	}
+
+	getSamplingFrame(colorBuffer) 
+  {
+		var pixelIndex = 0;
+		var pixel;
+		for (var y = this.camera.scope.y - 1; y >= 0; y--) 
+    {
+			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
+      {
+				pixel = this.getPixel(x + 1, y + 1);
+
+				if (pixel.sample === true) 
+        {
+					colorBuffer[pixelIndex] = this.whiteColorInt;
+				} 
+				else 
+        {
+					colorBuffer[pixelIndex] = this.blackColorInt;
+				}
+			}
+		}
+	}
 }
