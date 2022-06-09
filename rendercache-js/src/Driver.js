@@ -67,13 +67,14 @@ export default class Driver {
 			requests: 0 
 		};
 
-    this.jobCount = 1;
+    this.counter = 1;
     /*this.workers = [];
     for(var i=0; i<this.jobCount; i++)
     {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
     }*/
     this.fps = 0;
+    this.start = Date.now();
 
   }
 
@@ -105,6 +106,7 @@ export default class Driver {
       this.fillGaps();
       var requests = this.directSamples();
       this.requestSamples(requests);
+      //this.requestSamplesPromise(requests);
       this.age(this.ageFactor, this.cache);
 
       //export information to csv
@@ -126,13 +128,20 @@ export default class Driver {
   }
 
   parse(frameIndex, fps){
-    if(frameIndex % 10 === 0)
+
+   /* if(frameIndex % 10 === 0)
     console.log("\n completeness: " + this.statistics.completeness 
     + "\n totalPriority: " + this.statistics.totalPriority 
     + "\n threshold: " + this.statistics.threshold 
     + "\n candidates: " + this.statistics.candidates 
     + "\n requests: " + this.statistics.requests
-    + "\n totalFrames: " + frameIndex);
+    + "\n totalFrames: " + frameIndex);*/
+
+    if(this.statistics.completeness  >= 70 && this.counter === 1){
+      var after = Date.now();
+      this.counter = 0;
+      console.log( (after - this.start)/1000 + " seconds to achieve 70% completeness");
+    }
 
     this.fps++;
 
@@ -669,94 +678,6 @@ export default class Driver {
 		this.statistics.totalPriority = totalPriority;
   }
 
-  /*directSamples() {
-    var threshold = this.priorityMax;
-    var count = this.priorities[URGENT][threshold];
-    var test;
-
-    while (count < this.maximumSamplesPerFrame) {
-      test = this.priorities[INTERPOLATED][threshold] + this.priorities[SAMPLED][threshold];
-       // console.log(this.priorities[SAMPLED][threshold]);
-
-      count += test;
-      if (count < this.maximumSamplesPerFrame) {
-        threshold = threshold - 2;
-      }
-    }
-    var sizeFactor = 1;
-    if (threshold === this.priorityMax) 
-    {
-      sizeFactor = Math.floor(count / this.maximumSamplesPerFrame);
-      if (sizeFactor < 1.2) sizeFactor = 1.0;
-    }
-
-    var occurence = 0;
-    var requests = new Array();
-    threshold = (threshold*this.maximumSamplesPerFrameRatio);
-    for (var y = 1; y <= this.camera.scope.y; y++)  
-    {
-      if (y % 2 === 0) 
-      {
-        for (var x = 1; x <= this.camera.scope.x; x++) 
-        {
-          var pixel = this.getPixel(x, y);
-
-          if (pixel.priority >= 0) 
-          {
-            if (occurence >= sizeFactor) 
-            {
-              occurence = occurence - sizeFactor;
-              this.addRequest(requests, pixel);
-              //this.distributeHalfPriority(pixel, threshold, x, y, +1, 1);
-              this.distributeHalfPriority(pixel, threshold, x, y, 1, 1);
-
-              //pixel.sample = true;
-            } 
-            else 
-            {
-              occurence = occurence + 1.0;
-            }
-            
-          } 
-          else 
-          {
-            pixel.sample = false;
-          }
-        }
-      } 
-      else 
-      {    
-        for (var x = this.camera.scope.x; x >= 0; x--)
-        //for (var x = 1; x <= this.camera.scope.x; x++) 
-        {
-          var pixel = this.getPixel(x, y);
-
-          if (pixel.priority >= threshold) 
-          {
-            if (occurence >= sizeFactor) 
-            {
-              occurence = occurence - sizeFactor;
-              this.addRequest(requests, pixel);
-              //this.distributeHalfPriority(pixel, threshold, x, y, -1, 1);
-              this.distributeHalfPriority(pixel, threshold, x, y, -1, 1);
-
-              //pixel.sample = true;
-            } 
-            else 
-            {
-              occurence = occurence + 1.0;
-            }
-            
-          } 
-          else 
-          {
-            pixel.sample = false;
-          }
-        }
-      }
-    }
-    return requests;
-  }*/
 
   directSamples() 
   {
@@ -916,13 +837,13 @@ export default class Driver {
       this.getPixel(x, y + yRelative).priority += half;
     }
   }
-  
+
 
   requestSamples(requests) 
   {
 		this.statistics.requests = requests.length;
 
-    for (var i = 0; i < requests.length; i++) 
+    for (var i = 0; i < requests.length; i ++) 
     {
       var request = requests[i];
       if(request.pixel !== null)
@@ -935,26 +856,80 @@ export default class Driver {
       {
         this.camera.computeDirToPixel(request);
       }
-      //make parallel here?
-       request = request.doRaytracing(this.engine, this.camera.from, request);
-     
-       //var e = JSON.parse(JSON.stringify(this.engine));
-       //var c = JSON.parse(JSON.stringify(this.camera));
-       //var r = JSON.parse(JSON.stringify(request));
-       /*var data = {
-        engine: this.engine,
-        camera: this.camera,
-        request: request,
-      };*/
 
+        request.doRaytracing(this.engine, this.camera.from, request);
+   }
+  }
+}
 
-     /*  this.worker.onmessage = function(e) {
-        request = e.data.request;
-        }.bind(request);
+  requestSamplesPromise(requests) 
+  {
+		this.statistics.requests = requests.length;
 
-        this.worker.postMessage(request);*/
+    var numberOfPromises = 15;
+    var numberOfRequests = 1;
+    var advance = numberOfPromises + numberOfRequests - 1;
 
+    for (var i = 0; i < requests.length; i += advance) 
+    {
+      //console.log("here");
+      var promiseArray = [];
+
+      //1 promises represents 1 worker?
+      function getPromises(){
+        for(var j = 0; j < numberOfPromises; j++){
+          if(i + j < requests.length){
+          var pi = calculateRequest(j);
+          promiseArray.push(pi);      
+          }
+          //console.log("no request available");
+        }
+        return promiseArray;
       }
+
+      var calculateRequest= async j => {
+      return new Promise(resolve => {
+      
+      /*for(var r = 0; r < numberOfRequests; r++)
+      {
+        if(i + j + r < requests.length)
+        {*/
+
+      var request = requests[i + j];
+      //var request = requests[i + j + r];
+     // var request = requests[i];
+
+      if(request.pixel !== null)
+      {
+      if (request.resample) 
+      {
+        this.camera.computeDirToHit(request);
+      } 
+      else 
+      {
+        this.camera.computeDirToPixel(request);
+      }
+      //make parallel here?
+      // request = request.doRaytracing(this.engine, this.camera.from, request);
+
+        request.doRaytracing(this.engine, this.camera.from, request);
+       };
+       // }
+     // }
+
+      resolve(request);  
+     });
+        //async functions have to be inside requestSamples
+      }
+
+      const call = async () => {
+        const res = await Promise.all(
+          getPromises(),
+        );
+        //console.log({ res });
+      };
+    
+      call();
     }
   }
 
