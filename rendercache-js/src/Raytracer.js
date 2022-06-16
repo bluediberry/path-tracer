@@ -40,7 +40,7 @@ export default class Raytracer {
     }
 
     trace(rayOrigin, sample) {
-        console.log("tracing...");
+        //console.log("tracing...");
         var tnear = INFINITY;
         var element = null;
 

@@ -13,11 +13,8 @@ export default class Camera {
     this.to = to;
     this.fov = fov;
     this.halfScope = { x: 0.5 * width, y: 0.5 * height };
-    // @ts-ignore
 	  this.raycaster = new THREE.Raycaster();
-    // @ts-ignore
   	this.pixel = new THREE.Vector2();
-    // @ts-ignore
     this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
     //this.cam.position.set(from.x, from.y, from.z);
   	this.updatePosition(from, to);

@@ -73,28 +73,17 @@ function animate()
 	// done PRIOR to calculation
 	camera.updatePosition(from, to);
 
-    controls.update();
+    //controls.update();
 	// this is just a minor location update
 	from.x = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
   //from.y = 100 * Math.cos(angle * DEGREES_TO_RADIANS);
 	from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
 	angle += 5;
 
-  if(raytrace)
-  {
-  // perform everything for the next frame
-  driver.nextFrame1SPP(frameIndex);
-  }
-  else 
-  {
-	// perform every single step in the rendercache
-	// pipeline for the next frame
-  driver.nextFrame(frameIndex, fps);
-  }
-
-
+   driver.nextFrame(frameIndex, fps);
+  
 	// compute frame data
-	driver.getColorFrame(colorbuffer);
+	//driver.getColorFrame(colorbuffer);
 
 	// copy  buffer to canvas
 	var buf8 = new Uint8ClampedArray(buffer);

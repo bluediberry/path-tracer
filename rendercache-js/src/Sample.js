@@ -41,7 +41,7 @@ export default class Sample {
     this.b = b;
   }
 
-  serialize(rayOrigin) {
+ /* serialize(rayOrigin) {
     var pixel = this.pixel;
 	  var hit = this.hit;
 	  var normalDir = this.normalDir;
@@ -55,9 +55,9 @@ export default class Sample {
     request.push([hit.x, hit.y, hit.z]);
 
     return request;
-}
+}*/
 
-/*serialize(rayOrigin) {
+serialize(rayOrigin) {
   var pixel = this.pixel;
   var color = this.color;
   var hit = this.hit;
@@ -77,7 +77,8 @@ export default class Sample {
     "resample": resample,
     "inUse": inUse,
     "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
-  };}*/
+  };
+}
 
  deserialize(newRequests) 
 {
