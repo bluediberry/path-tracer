@@ -19,6 +19,7 @@ var normalDir = new Vector3(0, 0, 0);
 var rayDir = new Vector3(0, 0, 0);
 var pixel = new Vector3(0, 0, 0);
 var newRequest = [];
+var rayTracer = new RayTracer(scene);
 
 function rendererMessageHandler(e) {
     var action = e.data.action;
@@ -75,10 +76,8 @@ function startRendering()
     newRequest.normalDir = normalDir;
     newRequest.rayDir = rayDir;
     //console.log(newRequest)
-    var rayTracer = new RayTracer(scene);
     var color = rayTracer.trace(fromRequest, newRequest);
     var newHit = rayTracer.getHit();
-
     //console.log(color)
     // send result buffer
     //var buf8  = new Uint8ClampedArray(buffer);

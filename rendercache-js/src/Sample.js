@@ -43,26 +43,41 @@ export default class Sample {
 
   serialize(rayOrigin) {
     var pixel = this.pixel;
-    var color = this.color;
 	  var hit = this.hit;
 	  var normalDir = this.normalDir;
     var rayDir = this.rayDir;
-	  var age = this.age;
-    var resample = this.resample;
-  	var inUse = this.inUse;  
 
-    return {
-      "pixel": [pixel.x, pixel.y, pixel.color],
-      "color": [color.r, color.g, color.b],
-      "hit": [hit.x, hit.y, hit.z],
-      "normalDir": [normalDir.x, normalDir.y, normalDir.z],
-      "rayDir": [rayDir.x, rayDir.y, rayDir.z],
-      "age": age,
-      "resample": resample,
-      "inUse": inUse,
-      "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
-    };
+    var request = [];
+    request.push([pixel.x, pixel.y]);
+    request.push([rayOrigin.x, rayOrigin.y, rayOrigin.z]);
+    request.push([rayDir.x, rayDir.y, rayDir.z]);
+    request.push([normalDir.x, normalDir.y, normalDir.z]);
+    request.push([hit.x, hit.y, hit.z]);
+
+    return request;
 }
+
+/*serialize(rayOrigin) {
+  var pixel = this.pixel;
+  var color = this.color;
+  var hit = this.hit;
+  var normalDir = this.normalDir;
+  var rayDir = this.rayDir;
+  var age = this.age;
+  var resample = this.resample;
+  var inUse = this.inUse;  
+
+  return {
+    "pixel": [pixel.x, pixel.y, pixel.color],
+    "color": [color.r, color.g, color.b],
+    "hit": [hit.x, hit.y, hit.z],
+    "normalDir": [normalDir.x, normalDir.y, normalDir.z],
+    "rayDir": [rayDir.x, rayDir.y, rayDir.z],
+    "age": age,
+    "resample": resample,
+    "inUse": inUse,
+    "rayOrigin": [rayOrigin.x, rayOrigin.y, rayOrigin.z],
+  };}*/
 
  deserialize(newRequests) 
 {
@@ -101,6 +116,8 @@ export default class Sample {
 }
 
   doRaytracing(raytracer, rayOrigin, request) {
+
+    console.log("hey");
 
     var rayDir = request.rayDir;
     var hit = request.hit;

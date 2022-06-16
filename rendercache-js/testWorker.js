@@ -1,20 +1,37 @@
-var numWorkers = 5;
-var calcArray = [43, 44, 45];
-var calcArray2 = [43, 44, 45];
+var numWorkers = 7;
+var calcArray = [19,17,14];
+var calcArray2 = [[34,56,34],[56,45,12],[19,17,14]];
 console.time("Time to calculate parallel");
-var p = new Parallel(calcArray, {maxWorkers: numWorkers}),
+var p = new Parallel(calcArray2, {maxWorkers: numWorkers}),
 log = function () { 
     console.log(arguments);
     console.timeEnd("Time to calculate parallel");
     console.log("Workers: " + numWorkers + ", items: " + calcArray.length);
-    sequential();
+    //sequential();
  };
 // One gotcha: anonymous functions cannot be serialzed
 // If you want to do recursion, make sure the function
 // is named appropriately
+
 function fib(n) {
-    return n < 2 ? 1 : fib(n - 1) + fib(n - 2);
+    //return n < 2 ? 1 : fib(n - 1) + fib(n - 2);
+    console.log("here");
 };
+
+function fibonacci(num){
+    for(var i = 0; i < num.length; i++){
+        let a = 1, b = 0, temp, num2 = num[i];
+        while (num2 >= 0){
+          temp = a;
+          a = a + b;
+          b = temp;
+          num2--;
+        }
+        num[i] = b;
+    }
+    fib(0);
+    return num;
+}
 
 function sequential() { 
     var result = [];
@@ -26,4 +43,6 @@ function sequential() {
     console.timeEnd("Time to calculate sequential");
  };
 
- p.map(fib).then(log);
+ p.require(fib);
+ p.map(fibonacci).then(log);
+ 

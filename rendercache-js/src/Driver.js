@@ -4,6 +4,7 @@ import Color from "./Color.js";
 import Vector3 from "./Vector3.js";
 import Scene from "./Scene2.js";
 import RayTracer from "./Raytracer.js";
+import Scene2 from "./Scene2.js";
 
 
 const INTERPOLATED = 0;
@@ -982,7 +983,7 @@ export default class Driver {
     return newRequest;
   }
 
-   serializeRequests(requests)
+   serializeRequests2(requests)
    {
     var fromRequests = [];
     var newRequests = [];
@@ -1008,7 +1009,7 @@ export default class Driver {
     return newRequests;
    }
 
-  requestSamples(requests) 
+  requestSamples2(requests) 
   {    
 
 		this.statistics.requests = requests.length;
@@ -1049,6 +1050,91 @@ export default class Driver {
       }   
     }
   }
+
+  serializeRequests(requests)
+  {
+   var fromRequests = [];
+   var newRequests = [];
+
+   for (var i = 0; i < requests.length; i++) 
+   {  
+     var request = requests[i];
+
+     if (request.resample) 
+     {
+       this.camera.computeDirToHit(request);
+     } 
+     else 
+     {
+       this.camera.computeDirToPixel(request);
+     }
+
+     fromRequests[i] = this.camera.from;
+
+     newRequests[i] = request.serialize(fromRequests[i]);
+   }
+
+   return newRequests;
+  }
+
+  requestSamples(requests) 
+  {
+		this.statistics.requests = requests.length;
+
+    var newRequests = this.serializeRequests(requests);
+    //console.log(newRequests[7])
+
+    var p = new Parallel(newRequests, {evalPath:'http://localhost:5500/js/eval.js '}, 
+      {maxWorkers: 7});
+
+    function log() { 
+      console.log("done");
+   };
+
+   function getEngine() {
+    return this.engine;
+  };
+
+    function rayTrace(request) {
+
+      var rayDir = request[2];
+      var hit = request[5];
+      var normalDir = request[4];
+      
+      var scene = Scene;
+      console.log("ok");
+      var rayTracer = RayTracer(scene);
+      console.log("ok");
+      var c = rayTracer.trace(rayOrigin, request, rayDir, hit, normalDir);
+      //console.log("ok")
+
+      // vector to color
+      request.color.copy(c.x, c.y, c.z);
+      // truncate if beyond 1
+      request.color.r = Math.min(1, request.color.r);
+      request.color.g = Math.min(1, request.color.g);
+      request.color.b = Math.min(1, request.color.b);
+  
+      // convert pixel to bytes
+      request.color.r = Math.round(request.color.r * 255);
+      request.color.g = Math.round(request.color.g * 255);
+      request.color.b = Math.round(request.color.b * 255);
+  
+      // set pixel color to this sample color 
+      request.pixel.color = request.color;
+      //console.log(request.color);
+  
+      // sample is in use
+        this.inUse = true;
+  
+      return request;
+   };
+
+   p.require(Scene);
+   p.require(RayTracer);
+   p.map(rayTrace).then(log);
+
+ }
 
 
 	age(amount, items) 
