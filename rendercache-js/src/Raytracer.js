@@ -81,7 +81,7 @@ export default class Raytracer {
         sample.hit = intersectionPoint.clone();
 		sample.normalDir = intersectionNormal.normalize();
 
-        this.setHit(sample.hit);
+        //this.setHit(sample.hit);
 
         var bias = 1e-4;
         var inside = false;
