@@ -851,104 +851,6 @@ export default class Driver {
     }
   }
   
-
-  
-  prepareWorker(rendererWorker, fromRequest, newRequest, request, worker)
-  {
-
-    var c = new Vector3(0, 0, 0);
-    var h = new Vector3(0, 0, 0);
-    var p = new Vector3(0, 0, 0);
-
-    rendererWorker.postMessage({
-      "action": "from",
-      "data": [fromRequest.x, fromRequest.y, fromRequest.z]
-    });
-
-    rendererWorker.postMessage({
-      "action": "hit",
-      "data": [newRequest.hit.x, newRequest.hit.y, newRequest.hit.z]
-    });
-
-    rendererWorker.postMessage({
-      "action": "normalDir",
-      "data": [newRequest.normalDir.x, newRequest.normalDir.y, newRequest.normalDir.z]
-    });
-
-    rendererWorker.postMessage({
-      "action": "rayDir",
-      "data": [newRequest.rayDir.x, newRequest.rayDir.y, newRequest.rayDir.z]
-      
-    });
-
-    rendererWorker.postMessage({
-      "action": "pixel",
-      "data": [newRequest.pixel.x, newRequest.pixel.y, newRequest.pixel.color]
-      
-    });
-
-    rendererWorker.postMessage({
-      "action": "render"
-    });
-
-    rendererWorker.onmessage = function(e) {
-      var action = e.data.action;
-      var data = e.data.data;
-
-      if(action == "result")
-      {
-        c.x = data[0];
-        c.y = data[1];
-        c.z = data[2];
-
-        h.x = data[3];
-        h.y = data[4];
-        h.z = data[5];
-
-        p.x = data[6];
-        p.y = data[7];
-
-        var pixel = this.getPixel(p.x, p.y);
-        //console.log(pixel);
-        //request.hit = newRequest.hit;
-        request.hit = h;
-        //console.log(request.hit);
-          // vector to color
-          request.color.copy(c.x, c.y, c.z);
-
-          // truncate if beyond 1
-          request.color.r = Math.min(1, request.color.r);
-          request.color.g = Math.min(1, request.color.g);
-          request.color.b = Math.min(1, request.color.b);
-
-          // convert pixel to bytes
-          request.color.r = Math.round(request.color.r * 255);
-          request.color.g = Math.round(request.color.g * 255);
-          request.color.b = Math.round(request.color.b * 255);
-
-          //set pixel color to this sample color 
-          request.pixel = pixel;
-          pixel.element = request;
-          request.pixel.color = request.color;
-          pixel.color = request.color;
-          //sample is in use
-          request.inUse = true;  
-          var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y) - (this.camera.scope.x - p.x);
-          this.colorBuffer[pixelIndex] =
-          this.alphaChannel | // alpha
-          (request.color.b << 16) | // blue
-          (request.color.g << 8) | // green
-          request.color.r; // red
-          
-          //console.log("worker: " + worker); 
-      }
-    /*  if(this.counter == 15000){
-        this.counter = 0;
-        this.getColorFrame(this.colorBuffer);
-      }*/
-    }.bind(this);
-  }
-
   getSerializedRequest(newRequests, i)
   {
     var newRequest = [];
@@ -981,74 +883,6 @@ export default class Driver {
     );
 
     return newRequest;
-  }
-
-   serializeRequests2(requests)
-   {
-    var fromRequests = [];
-    var newRequests = [];
-
-    for (var i = 0; i < requests.length; i++) 
-    {  
-      var request = requests[i];
-
-      if (request.resample) 
-      {
-        this.camera.computeDirToHit(request);
-      } 
-      else 
-      {
-        this.camera.computeDirToPixel(request);
-      }
-
-      fromRequests[i] = this.camera.from;
-
-      newRequests[i] = request.serialize(fromRequests[i]);
-    }
-
-    return newRequests;
-   }
-
-  requestSamples2(requests) 
-  {    
-
-		this.statistics.requests = requests.length;
-
-    var newRequests = this.serializeRequests(requests);
-    
-    var worker = 0;
-    var workerLength = this.workers.length;
-
-    for (var i = 0; i < requests.length; i += workerLength) 
-    {     
-
-      for(var j = 0; j < workerLength; j++)
-      {
-      
-        if(i + j < requests.length)
-        {
-          var newRequest = this.getSerializedRequest(newRequests, i + j);
-          var request = requests[i + j];
-          //console.log(request.pixel);
-    
-          newRequest.color = new Color();
-          newRequest.color.copy(newRequests[i + j].color);
-    
-          //request.doRaytracing(this.engine, fromRequest, request);
-    
-          this.messageReceived = false;
-    
-          var fromRequest = new Vector3(
-            newRequests[i + j].rayOrigin[0], 
-            newRequests[i + j].rayOrigin[1],
-            newRequests[i + j].rayOrigin[2]
-          );
-          //console.log("worker: " + j);
-          this.prepareWorker(this.workers[j], fromRequest, newRequest, request, j);
-        }
-
-      }   
-    }
   }
 
   serializeRequests(requests)
@@ -1084,28 +918,34 @@ export default class Driver {
     var newRequests = this.serializeRequests(requests);
     //console.log(newRequests[7])
 
-    var p = new Parallel(newRequests, {evalPath:'http://localhost:5500/js/eval.js '}, 
-      {maxWorkers: 7});
+    var p = new Parallel(newRequests, 
+      {evalPath:'http://localhost:5500/js/eval.js '}, 
+      {
+        env: {
+            s: this.scene,
+            r: this.engine
+        }
+      },
+      {maxWorkers: 7}
+      );
 
     function log() { 
       console.log("done");
    };
 
-   function getEngine() {
-    return this.engine;
-  };
-
     function rayTrace(request) {
 
-      var rayDir = request[2];
-      var hit = request[5];
-      var normalDir = request[4];
+      var rayOrigin = request[1];
+
+      var newSample = Sample();
+      console.log(newSample);
       
-      var scene = Scene;
-      console.log("ok");
-      var rayTracer = RayTracer(scene);
-      console.log("ok");
-      var c = rayTracer.trace(rayOrigin, request, rayDir, hit, normalDir);
+      //console.log(request);
+      //var scene = global.env.s;
+      //console.log("ok1");
+      var rayTracer = global.env.r;
+      //console.log("ok2");
+      var c = rayTracer.trace(rayOrigin, request);
       //console.log("ok")
 
       // vector to color
@@ -1130,8 +970,7 @@ export default class Driver {
       return request;
    };
 
-   p.require(Scene);
-   p.require(RayTracer);
+   p.require('src\Sample.js');
    p.map(rayTrace).then(log);
 
  }
