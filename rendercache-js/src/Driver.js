@@ -918,6 +918,11 @@ export default class Driver {
     var newRequests = this.serializeRequests(requests);
     //console.log(newRequests[7])
 
+    var p = new Parallel(newRequests, 
+      {evalPath:'http://localhost:5500/js/eval.js '}, 
+      {maxWorkers: 7}
+      );
+
     function trace(rayOrigin, sample, sceneElem) {
       //console.log("tracing...");
       var tnear = INFINITY;
@@ -1004,12 +1009,6 @@ export default class Driver {
       surfaceColor = surfaceColor.add(mat.emissionColor);
       return surfaceColor;
   }
-
-
-    var p = new Parallel(newRequests, 
-      {evalPath:'http://localhost:5500/js/eval.js '}, 
-      {maxWorkers: 7}
-      );
 
     function log() { 
       console.log("done");
