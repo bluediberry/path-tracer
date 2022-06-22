@@ -15,7 +15,7 @@ export default class Camera {
   	this.pixel = new THREE.Vector2();
     this.cam = new THREE.PerspectiveCamera(fov, width / height, 0.1, 10000);
     //this.cam.position.set(from.x, from.y, from.z);
-  	this.updatePosition(from, to);
+  	//this.updatePosition(from, to);
   }
 
   updatePosition(from, to) {
