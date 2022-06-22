@@ -2,6 +2,7 @@ import RayTracer from './RayTracer.js'
 import Scene from './Scene2.js'
 import Sphere from './Sphere.js'
 import Vector3 from './Vector3.js'
+import Color from './Color.js'
 
 var messageHandler = undefined;
 
@@ -20,6 +21,9 @@ var rayDir = new Vector3(0, 0, 0);
 var pixel = new Vector3(0, 0, 0);
 var newRequest = [];
 var rayTracer = new RayTracer(scene);
+var colorArray = [];
+var width = 480;
+var height =360;
 
 function rendererMessageHandler(e) {
     var action = e.data.action;
@@ -67,20 +71,44 @@ function rendererMessageHandler(e) {
     {
         startRendering();
     }
+
+    else if(action == "askColor")
+    {
+        giveColor(data[0], data[1]);
+    }
+
 }
 messageHandler = rendererMessageHandler;
+
+function giveColor(x, y){
+
+    var pixelIndex = width*(height - y) - (width - x);
+
+    var color = colorArray[pixelIndex];
+    console.log(color)
+    postMessage({
+        "action": "colorResult",
+        "data": [color[0], color[1], color[2]],
+    });
+
+}
 
 function startRendering()
 {
     newRequest.hit = hit;
     newRequest.normalDir = normalDir;
     newRequest.rayDir = rayDir;
-    //console.log(newRequest)
-    var color = rayTracer.trace(fromRequest, newRequest);
+    newRequest.rayOrigin = fromRequest;
+
+    var color = rayTracer.trace(newRequest);
     var newHit = rayTracer.getHit();
     //console.log(color)
     // send result buffer
     //var buf8  = new Uint8ClampedArray(buffer);
+    var pixelIndex = width*(height - pixel.y) - (width - pixel.x);
+
+    colorArray[pixelIndex] = color;
+
     postMessage({
         "action": "result",
         "data": [color.x, color.y, color.z, 

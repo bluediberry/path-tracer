@@ -32,10 +32,6 @@ if(raytrace)
   ratio = 1;
 }
 
-var worker = new Worker("./src/RenderWorker.js", {type: 'module'});
-
-
-
 // initialize buffer view
 var colorDepth = 4;
 // @ts-ignore

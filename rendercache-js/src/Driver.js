@@ -71,30 +71,17 @@ export default class Driver {
 			requests: 0 
 		};
 
-    this.jobCount = 3;
+    this.jobCount = 5;
     this.rows = [];
     this.startTime = Date.now();
     this.runTime = Date.now();;
 
-    //this.serializeScene();
-
     this.workers = [];
-    for(var i=0; i < this.jobCount; i++)
+    for(var i = 0; i < this.jobCount; i++)
     {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
     }
 
-    this.messageReceived = true;
-    this.c = new Vector3(0, 0, 0);
-
-    var canvas = document.getElementById("resultCanvas");
-    this.ctx = canvas.getContext("2d");
-
-    // initialize buffer view
-    this.colorDepth = 4;
-    // @ts-ignore
-    this.bufferC = new ArrayBuffer(this.camera.scope.x * this.camera.scope.y * this.colorDepth);
-    this.colorbuffer = new Uint32Array(this.bufferC);
     this.colorBuffer = colorBuffer;
     this.counter = 0;
   }
@@ -853,7 +840,7 @@ export default class Driver {
   
 
   
-  prepareWorker(rendererWorker, fromRequest, newRequest, request, worker)
+  prepareWorker(rendererWorker, newRequest, request)
   {
 
     var c = new Vector3(0, 0, 0);
@@ -862,7 +849,7 @@ export default class Driver {
 
     rendererWorker.postMessage({
       "action": "from",
-      "data": [fromRequest.x, fromRequest.y, fromRequest.z]
+      "data": [newRequest.rayOrigin.x, newRequest.rayOrigin.y, newRequest.rayOrigin.z]
     });
 
     rendererWorker.postMessage({
@@ -890,95 +877,29 @@ export default class Driver {
     rendererWorker.postMessage({
       "action": "render"
     });
-
-    rendererWorker.onmessage = function(e) {
-      var action = e.data.action;
-      var data = e.data.data;
-
-      if(action == "result")
-      {
-        c.x = data[0];
-        c.y = data[1];
-        c.z = data[2];
-
-        h.x = data[3];
-        h.y = data[4];
-        h.z = data[5];
-
-        p.x = data[6];
-        p.y = data[7];
-
-        var pixel = this.getPixel(p.x, p.y);
-        //console.log(pixel);
-        //request.hit = newRequest.hit;
-        request.hit = h;
-        //console.log(request.hit);
-          // vector to color
-          request.color.copy(c.x, c.y, c.z);
-
-          // truncate if beyond 1
-          request.color.r = Math.min(1, request.color.r);
-          request.color.g = Math.min(1, request.color.g);
-          request.color.b = Math.min(1, request.color.b);
-
-          // convert pixel to bytes
-          request.color.r = Math.round(request.color.r * 255);
-          request.color.g = Math.round(request.color.g * 255);
-          request.color.b = Math.round(request.color.b * 255);
-
-          //set pixel color to this sample color 
-          request.pixel = pixel;
-          pixel.element = request;
-          request.pixel.color = request.color;
-          pixel.color = request.color;
-          //sample is in use
-          request.inUse = true;  
-          var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y) - (this.camera.scope.x - p.x);
-          this.colorBuffer[pixelIndex] =
-          this.alphaChannel | // alpha
-          (request.color.b << 16) | // blue
-          (request.color.g << 8) | // green
-          request.color.r; // red
-          
-          //console.log("worker: " + worker); 
-      }
-    /*  if(this.counter == 15000){
-        this.counter = 0;
-        this.getColorFrame(this.colorBuffer);
-      }*/
-    }.bind(this);
   }
 
   getSerializedRequest(newRequests, i)
   {
     var newRequest = [];
 
-    newRequest.hit = new Vector3(
-      newRequests[i].hit[0], 
-      newRequests[i].hit[1],
-      newRequests[i].hit[2]
-      );
+    var rh = newRequests[i].hit;
+    newRequest.hit = new Vector3(rh[0], rh[1], rh[2]);
 
-    newRequest.normalDir = new Vector3(
-      newRequests[i].normalDir[0], 
-      newRequests[i].normalDir[1],
-      newRequests[i].normalDir[2]
-    );
+    var nd = newRequests[i].normalDir;
+    newRequest.normalDir = new Vector3(nd[0], nd[1], nd[2]);
+    
+    var rd = newRequests[i].rayDir;
+    newRequest.rayDir = new Vector3(rd[0], rd[1], rd[2]);
 
-    newRequest.rayDir = new Vector3(
-      newRequests[i].rayDir[0], 
-      newRequests[i].rayDir[1],
-      newRequests[i].rayDir[2]
-    );
+    var ro = newRequests[i].rayOrigin;
+    newRequest.rayOrigin = new Vector3(ro[0], ro[1], ro[2]);
 
     newRequest.color = new Color();
     newRequest.color.copy(newRequests[i].color);
 
-    newRequest.pixel = new Vector3(
-      newRequests[i].pixel[0], 
-      newRequests[i].pixel[1],
-      newRequests[i].pixel[2]
-    );
+    var pxl = newRequests[i].pixel;
+    newRequest.pixel = new Vector3(pxl[0], pxl[1], pxl[2]);
 
     return newRequest;
   }
@@ -1016,34 +937,75 @@ export default class Driver {
 
     var newRequests = this.serializeRequests(requests);
     
-    var workerLength = this.workers.length;
-
-    for (var i = 0; i < requests.length; i += workerLength) 
+    for (var i = 0; i < requests.length; i += this.workers.length) 
     {     
 
-      for(var j = 0; j < workerLength; j++)
+      for(var j = 0; j < this.workers.length; j++)
       {
       
         if(i + j < requests.length)
         {
           var newRequest = this.getSerializedRequest(newRequests, i + j);
           var request = requests[i + j];
-          //console.log(request.pixel);
     
           newRequest.color = new Color();
           newRequest.color.copy(newRequests[i + j].color);
-    
-          //request.doRaytracing(this.engine, fromRequest, request);
-    
-          this.messageReceived = false;
-    
-          var fromRequest = new Vector3(
-            newRequests[i + j].rayOrigin[0], 
-            newRequests[i + j].rayOrigin[1],
-            newRequests[i + j].rayOrigin[2]
-          );
-          //console.log("worker: " + j);
-          this.prepareWorker(this.workers[j], fromRequest, newRequest, request, j);
+        
+          this.prepareWorker(this.workers[j], newRequest, request);
+          var c = new Vector3(0, 0, 0);
+          var h = new Vector3(0, 0, 0);
+          var p = new Vector3(0, 0, 0);
+      
+          this.workers[j].onmessage = function(e) {
+            var action = e.data.action;
+            var data = e.data.data;
+      
+            if(action == "result")
+            {
+              c.x = data[0];
+              c.y = data[1];
+              c.z = data[2];
+      
+              h.x = data[3];
+              h.y = data[4];
+              h.z = data[5];
+      
+              p.x = data[6];
+              p.y = data[7];
+      
+              var pixel = this.getPixel(p.x, p.y);
+              //console.log(pixel);
+              //request.hit = newRequest.hit;
+              request.hit = h;
+              //console.log(request.hit);
+                // vector to color
+                request.color.copy(c.x, c.y, c.z);
+      
+                // truncate if beyond 1
+                request.color.r = Math.min(1, request.color.r);
+                request.color.g = Math.min(1, request.color.g);
+                request.color.b = Math.min(1, request.color.b);
+      
+                // convert pixel to bytes
+                request.color.r = Math.round(request.color.r * 255);
+                request.color.g = Math.round(request.color.g * 255);
+                request.color.b = Math.round(request.color.b * 255);
+      
+                //set pixel color to this sample color 
+                request.pixel = pixel;
+                pixel.element = request;
+                request.pixel.color = request.color;
+                pixel.color = request.color;
+                //sample is in use
+                request.inUse = true;  
+                var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y) - (this.camera.scope.x - p.x);
+                this.colorBuffer[pixelIndex] =
+                this.alphaChannel | // alpha
+                (request.color.b << 16) | // blue
+                (request.color.g << 8) | // green
+                request.color.r; // red
+            }
+          }.bind(this);
         }
 
       }   
@@ -1112,16 +1074,17 @@ export default class Driver {
     {
 			for (var x = 0; x < this.camera.scope.x; x++, pixelIndex++) 
       {
-				pixel = this.getPixel(x + 1, y + 1);
-				color = pixel.color;
-				colorBuffer[pixelIndex] =
-					this.alphaChannel | // alpha
+       pixel = this.getPixel(x + 1, y + 1);
+       color = pixel.color;
+
+          colorBuffer[pixelIndex] =
+          this.alphaChannel | // alpha
 					(color.b << 16) | // blue
 					(color.g << 8) | // green
 					color.r; // red
+        }
 			}
 		}
-	}
 
 	getPriorityFrame(colorBuffer) 
   {
