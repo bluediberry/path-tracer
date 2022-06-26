@@ -27,10 +27,6 @@ var camera = new Camera(
 );
 
 var ratio = 16;
-if(raytrace)
-{
-  ratio = 1;
-}
 
 // initialize buffer view
 var colorDepth = 4;
@@ -103,4 +99,4 @@ function animate()
 // main program
 var frameIndex = 0;
 var angle = 0;
-window.setInterval(animate,5);
+window.setInterval(animate,500);

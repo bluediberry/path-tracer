@@ -71,10 +71,17 @@ function rendererMessageHandler(e) {
     {
         startRendering();
     }
-
-    else if(action == "askColor")
+    else if(action == "status")
     {
-        giveColor(data[0], data[1]);
+        var counter = data[0]; 
+        var samples = data[1];
+
+        if(counter == samples - 1){
+            postMessage({
+                "action": "allRendered",
+                "data": [samples],
+            });
+        }
     }
 
 }
