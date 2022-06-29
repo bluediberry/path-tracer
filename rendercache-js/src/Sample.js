@@ -80,42 +80,6 @@ serialize(rayOrigin) {
   };
 }
 
- deserialize(newRequests) 
-{
-    this.hit = new Vector3(
-      newRequests.hit[0], 
-      newRequests.hit[1],
-      newRequests.hit[2]
-      );
-
-
-    this.normalDir = new Vector3(
-      newRequests.normalDir[0], 
-      newRequests.normalDir[1],
-      newRequests.normalDir[2]
-      );
-
-    this.rayDir = new Vector3(
-      newRequests.rayDir[0], 
-      newRequests.rayDir[1],
-      newRequests.rayDir[2]
-      );
-
-    this.color = new Color();
-    this.color.copy(newRequests.color);
-
-    this.age = newRequests.age;
-    this.resample = newRequests.resample;
-    this.inUse = newRequests.inUse;
-
-    this.pixel = new Vector3(
-      newRequests.pixel[0], 
-      newRequests.pixel[1],
-      newRequests.pixel[2]
-      );
-
-}
-
   doRaytracing(raytracer, rayOrigin, request) {
 
     console.log("hey");
