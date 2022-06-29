@@ -11,6 +11,7 @@ export default class Raytracer {
         this.hit = new Vector3();
     }
 
+
     serialize() {
         var scene = this.scene;
         var camera = this.camera;
