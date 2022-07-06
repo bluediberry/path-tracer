@@ -65,7 +65,7 @@ static deserialize(data) {
 
   doRaytracing(raytracer, from, request) {
     
-    const c = raytracer.trace(from, request, 0);
+    const c = raytracer.trace(from, request);
 
   //  Promise.all([c]).then((values) => {    // vector to color
     this.color = new Color();

@@ -10,18 +10,8 @@ export default class Raytracer {
 		this.camera = camera;
     }
 
-    serialize() {
-        var scene = this.scene;
-        var camera = this.camera;
 
-        return [{
-            "scene": scene,
-            "camera": camera,
-        }];
-    }
-
-
-    trace(rayOrigin, sample, depth) {
+    trace(rayOrigin, sample) {
         var tnear = INFINITY;
         var element = null;
 

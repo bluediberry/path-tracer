@@ -87,18 +87,6 @@ function rendererMessageHandler(e) {
 }
 messageHandler = rendererMessageHandler;
 
-function giveColor(x, y){
-
-    var pixelIndex = width*(height - y) - (width - x);
-
-    var color = colorArray[pixelIndex];
-    console.log(color)
-    postMessage({
-        "action": "colorResult",
-        "data": [color[0], color[1], color[2]],
-    });
-
-}
 
 function startRendering()
 {
