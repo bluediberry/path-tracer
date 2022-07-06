@@ -1,9 +1,8 @@
 import RayTracer from './RayTracer.js'
-import Scene from './Scene.js'
+import Scene from './Scene2.js'
 import Sphere from './Sphere.js'
 import Vector3 from './Vector3.js'
-import Camera from './Camera.js'
-import Driver from './Driver.js'
+import Color from './Color.js'
 
 var messageHandler = undefined;
 
@@ -14,23 +13,17 @@ onmessage = function(e) {
     }
 };
 
-var frame = 0;
-
 var scene = new Scene();
-var backgroundColor = new Vector3(0, 0, 0);
-var rendererWidth = 0;
-var rendererHeight = 0;
-var startY = 0;
-var scanHeight = 0;
-// create raytracer
-//var engine = new Raytracer(scene, camera);
-var driver;
-var camera;
-//var canvas = getElementById("resultCanvas");
-var from = new Vector3(0, 50, 50);
-var to = new Vector3(0,0,0);
-var angle = 0;
-const DEGREES_TO_RADIANS = Math.PI / 180.0;
+var fromRequest = new Vector3(0, 0, 0);
+var hit = new Vector3(0, 0, 0);
+var normalDir = new Vector3(0, 0, 0);
+var rayDir = new Vector3(0, 0, 0);
+var pixel = new Vector3(0, 0, 0);
+var newRequest = [];
+var rayTracer = new RayTracer(scene);
+var colorArray = [];
+var width = 480;
+var height =360;
 
 function rendererMessageHandler(e) {
     var action = e.data.action;
@@ -43,64 +36,91 @@ function rendererMessageHandler(e) {
             scene.add(Sphere.deserialize(elements[i]));
         }
     }
-    else if(action == "backgroundColor")
+    else if(action == "from")
     {
-        backgroundColor.x = data[0];
-        backgroundColor.y = data[1];
-        backgroundColor.z = data[2];
+        fromRequest.x = data[0];
+        fromRequest.y = data[1];
+        fromRequest.z = data[2];
     }
-    else if(action == "dimensions")
+    else if(action == "hit")
     {
-        rendererWidth = data[0];
-        rendererHeight = data[1];
-        startY = data[2];
-        scanHeight = data[3];
+        hit.x = data[0];
+        hit.y = data[1];
+        hit.z = data[2];
+    }
+    else if(action == "rayDir")
+    {
+        rayDir.x = data[0];
+        rayDir.y = data[1];
+        rayDir.z = data[2];
+    }
+    else if(action == "normalDir")
+    {
+        normalDir.x = data[0];
+        normalDir.y = data[1];
+        normalDir.z = data[2];
 
-        // up vector is hardcoded into camera update position
-        camera = new Camera(to,
-        from,
-        30,
-        rendererWidth,
-        rendererHeight);
-
-        driver = new Driver(16, rendererWidth, rendererHeight, camera);
+    }
+    else if(action == "pixel")
+    {
+        pixel.x = data[0];
+        pixel.y = data[1];
+        pixel.z = data[2];
     }
     else if(action == "render")
     {
         startRendering();
     }
+    else if(action == "status")
+    {
+        var counter = data[0]; 
+        var samples = data[1];
+
+        if(counter == samples - 1){
+            postMessage({
+                "action": "allRendered",
+                "data": [samples],
+            });
+        }
+    }
+
 }
 messageHandler = rendererMessageHandler;
 
+function giveColor(x, y){
+
+    var pixelIndex = width*(height - y) - (width - x);
+
+    var color = colorArray[pixelIndex];
+    console.log(color)
+    postMessage({
+        "action": "colorResult",
+        "data": [color[0], color[1], color[2]],
+    });
+
+}
+
 function startRendering()
 {
-    var colorDepth = 4;
-    var buffer = new ArrayBuffer(rendererWidth*rendererHeight*colorDepth);
-    var colorBuffer = new Uint32Array(buffer);
+    newRequest.hit = hit;
+    newRequest.normalDir = normalDir;
+    newRequest.rayDir = rayDir;
+    newRequest.rayOrigin = fromRequest;
 
-    var startTime = new Date();
-   // var camera = new Camera(rendererWidth, rendererHeight);
-    //var driver = new Driver(16, rendererWidth, rendererHeight);
-    if(frame === 0){
-      driver.allocBuffers();
-      driver.allocCache(); 
-    }
-	camera.updatePosition(from, to);
-
-	//from.z = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
-    from.x = 100 * Math.sin(angle * DEGREES_TO_RADIANS);
-	angle += 1;
-
-    driver.nextFrame(frame, 0);
-    frame++;
-	driver.getReprojectionFrame(colorBuffer);
-    
-    var endTime = new Date();
-    //console.log(frame);
+    var color = rayTracer.trace(newRequest);
+    var newHit = rayTracer.getHit();
+    //console.log(color)
     // send result buffer
-    var buf8  = new Uint8ClampedArray(buffer);
+    //var buf8  = new Uint8ClampedArray(buffer);
+    var pixelIndex = width*(height - pixel.y) - (width - pixel.x);
+
+    colorArray[pixelIndex] = color;
+
     postMessage({
         "action": "result",
-        "data": buf8
+        "data": [color.x, color.y, color.z, 
+                newHit.x, newHit.y, newHit.z,
+                pixel.x, pixel.y
+                ],
     });
 }
