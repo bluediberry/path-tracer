@@ -68,11 +68,11 @@ export default class Driver {
 		};
 
     this.counter = 1;
-    this.workers = [];
-    for(var i = 0; i < 15; i++)
+    /*this.workers = [];
+    for(var i=0; i<this.jobCount; i++)
     {
         this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
-    }
+    }*/
     this.fps = 0;
     this.start = Date.now();
 
@@ -105,8 +105,8 @@ export default class Driver {
       this.depthCulling();
       this.fillGaps();
       var requests = this.directSamples();
-      //this.requestSamples(requests);
-      this.requestSamplesPromise(requests);
+      this.requestSamples(requests);
+      //this.requestSamplesPromise(requests);
       this.age(this.ageFactor, this.cache);
 
       //export information to csv
@@ -867,7 +867,7 @@ export default class Driver {
 		this.statistics.requests = requests.length;
 
     var numberOfPromises = 15;
-    var numberOfRequests = 300;
+    var numberOfRequests = 1;
     var advance = numberOfPromises + numberOfRequests - 1;
 
     for (var i = 0; i < requests.length; i += advance) 
@@ -875,6 +875,7 @@ export default class Driver {
       //console.log("here");
       var promiseArray = [];
 
+      //1 promises represents 1 worker?
       function getPromises(){
         for(var j = 0; j < numberOfPromises; j++){
           if(i + j < requests.length){
@@ -889,13 +890,13 @@ export default class Driver {
       var calculateRequest= async j => {
       return new Promise(resolve => {
       
-      for(var r = 0; r < numberOfRequests; r++)
+      /*for(var r = 0; r < numberOfRequests; r++)
       {
         if(i + j + r < requests.length)
-        {
+        {*/
 
-      //var request = requests[i + j];
-      var request = requests[i + j + r];
+      var request = requests[i + j];
+      //var request = requests[i + j + r];
      // var request = requests[i];
 
       if(request.pixel !== null)
@@ -912,11 +913,12 @@ export default class Driver {
       // request = request.doRaytracing(this.engine, this.camera.from, request);
 
         request.doRaytracing(this.engine, this.camera.from, request);
-        resolve(request);
-        }; 
-      }
-    }    
-  });
+       };
+       // }
+     // }
+
+      resolve(request);  
+     });
         //async functions have to be inside requestSamples
       }
 
