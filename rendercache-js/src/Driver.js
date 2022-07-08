@@ -866,7 +866,7 @@ export default class Driver {
   {
 		this.statistics.requests = requests.length;
 
-    var numberOfPromises = 15;
+    var numberOfPromises = 20;
     var numberOfRequests = 300;
     var advance = numberOfPromises * numberOfRequests;
 
