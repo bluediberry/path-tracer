@@ -878,7 +878,7 @@ export default class Driver {
       function getPromises(){
         for(var j = 0; j < numberOfPromises; j++){
           if(i + j < requests.length){
-          var pi = calculateRequest(j);
+          var pi = calculateRequest(j * numberOfRequests);
           promiseArray.push(pi);      
           }
           //console.log("no request available");
@@ -921,10 +921,9 @@ export default class Driver {
       }
 
       const call = async () => {
-        const res = await Promise.all(
+        await Promise.all(
           getPromises(),
         );
-        //console.log({ res });
       };
     
       call();
