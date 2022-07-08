@@ -868,7 +868,7 @@ export default class Driver {
 
     var numberOfPromises = 15;
     var numberOfRequests = 300;
-    var advance = numberOfPromises + numberOfRequests - 1;
+    var advance = numberOfPromises + numberOfRequests;
 
     for (var i = 0; i < requests.length; i += advance) 
     {
