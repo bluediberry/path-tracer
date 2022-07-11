@@ -137,10 +137,10 @@ export default class Driver {
     + "\n requests: " + this.statistics.requests
     + "\n totalFrames: " + frameIndex);*/
 
-    if(this.statistics.completeness  >= 75 && this.counter === 1){
+    if(this.statistics.completeness  >= 65 && this.counter === 1){
       var after = Date.now();
       this.counter = 0;
-      console.log( (after - this.start)/1000 + " seconds to achieve 75% completeness");
+      console.log( (after - this.start)/1000 + " seconds to achieve 65% completeness");
     }
 
     this.fps++;
