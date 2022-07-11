@@ -862,13 +862,106 @@ export default class Driver {
   }
 }
 
+getSerializedRequest(newRequests, i)
+{
+  var newRequest = [];
+
+  var rh = newRequests[i].hit;
+  newRequest.hit = new Vector3(rh[0], rh[1], rh[2]);
+
+  var nd = newRequests[i].normalDir;
+  newRequest.normalDir = new Vector3(nd[0], nd[1], nd[2]);
+  
+  var rd = newRequests[i].rayDir;
+  newRequest.rayDir = new Vector3(rd[0], rd[1], rd[2]);
+
+  var ro = newRequests[i].rayDir;
+  newRequest.rayOrigin = new Vector3(ro[0], ro[1], ro[2]);
+
+  var pxl = newRequests[i].pixel;
+  newRequest.pixel = new Vector3(pxl[0], pxl[1], 0);
+
+  return newRequest;
+}
+
+serializeRequests(requests)
+{
+ var fromRequests = [];
+ var newRequests = [];
+
+ for (var i = 0; i < requests.length; i++) 
+ {  
+   var request = requests[i];
+
+   if(request.pixel !== null)
+   {
+    if (request.resample) 
+    {
+      this.camera.computeDirToHit(request);
+    } 
+    else 
+    {
+      this.camera.computeDirToPixel(request);
+    }
+
+    fromRequests[i] = this.camera.from;
+
+    newRequests[i] = request.serialize(fromRequests[i]);
+   }
+
+ }
+
+ return newRequests;
+}
+
+  prepareWorker(worker, serialRequest)
+  {
+    worker.postMessage({
+      "action": "from",
+      "data": [serialRequest.rayOrigin.x, serialRequest.rayOrigin.y, serialRequest.rayOrigin.z]
+    });
+
+    worker.postMessage({
+      "action": "hit",
+      "data": [serialRequest.hit.x, serialRequest.hit.y, serialRequest.hit.z]
+    });
+
+    worker.postMessage({
+      "action": "normalDir",
+      "data": [serialRequest.normalDir.x, serialRequest.normalDir.y, serialRequest.normalDir.z]
+    });
+
+    worker.postMessage({
+      "action": "rayDir",
+      "data": [serialRequest.rayDir.x, serialRequest.rayDir.y, serialRequest.rayDir.z]
+      
+    });
+
+    worker.postMessage({
+      "action": "pixel",
+      "data": [serialRequest.pixel.x, serialRequest.pixel.y]
+      
+    });
+
+    worker.postMessage({
+      "action": "render"
+    });
+
+  }
+
+
   requestSamplesPromise(requests) 
   {
 		this.statistics.requests = requests.length;
 
-    var numberOfPromises = 25;
+    var numberOfPromises = 15;
     var numberOfRequests = 300;
     var advance = numberOfPromises * numberOfRequests;
+
+    var newRequests = this.serializeRequests(requests);
+    var sampleCount = requests.length;
+    var counter = 0;
+    this.newSamples = [];
 
     for (var i = 0; i < requests.length; i += advance) 
     {
@@ -894,26 +987,17 @@ export default class Driver {
         if(i + j + r < requests.length)
         {
 
-      //var request = requests[i + j];
       var request = requests[i + j + r];
-     // var request = requests[i];
+      var serialRequest = this.getSerializedRequest(newRequests, i + j + r);
 
       if(request.pixel !== null)
       {
-      if (request.resample) 
-      {
-        this.camera.computeDirToHit(request);
-      } 
-      else 
-      {
-        this.camera.computeDirToPixel(request);
-      }
       //make parallel here?
-      // request = request.doRaytracing(this.engine, this.camera.from, request);
+     // this.prepareWorker(this.workers[j/numberOfRequests], serialRequest);
 
-        request.doRaytracing(this.engine, this.camera.from, request);
-        resolve(request);
-        }; 
+      request.doRaytracing(this.engine, this.camera.from, request);
+      resolve(request);
+      }; 
       }
     }    
   });

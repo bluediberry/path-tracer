@@ -35,7 +35,7 @@ export default class Sample {
     pixel.element = this;
   }
 
-  serialize() {
+  serialize(fromRequests) {
     var pixel = this.pixel;
     var color = this.color;
     var hit = this.hit;
@@ -51,6 +51,7 @@ export default class Sample {
       "hit": [hit.x, hit.y, hit.z],
       "normalDir": [normalDir.x, normalDir.y, normalDir.z],
       "rayDir": [rayDir.x, rayDir.y, rayDir.z],
+      "rayOrigin": [fromRequests.x, fromRequests.y, fromRequests.z],
       "age": age,
       "resample": resample,
       "inUse": inUse,
@@ -67,7 +68,7 @@ static deserialize(data) {
     
     const c = raytracer.trace(from, request);
 
-  //  Promise.all([c]).then((values) => {    // vector to color
+  // vector to color
     this.color = new Color();
     this.color.copy(c.x, c.y, c.z);
 
@@ -88,7 +89,6 @@ static deserialize(data) {
     this.inUse = true;
 
     return request;
- // });
   }
 
 }

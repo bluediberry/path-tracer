@@ -3,6 +3,7 @@ import Scene from './Scene2.js'
 import Sphere from './Sphere.js'
 import Vector3 from './Vector3.js'
 import Color from './Color.js'
+import Sample from './Sample.js'
 
 var messageHandler = undefined;
 
@@ -65,23 +66,10 @@ function rendererMessageHandler(e) {
     {
         pixel.x = data[0];
         pixel.y = data[1];
-        pixel.z = data[2];
     }
     else if(action == "render")
     {
         startRendering();
-    }
-    else if(action == "status")
-    {
-        var counter = data[0]; 
-        var samples = data[1];
-
-        if(counter == samples - 1){
-            postMessage({
-                "action": "allRendered",
-                "data": [samples],
-            });
-        }
     }
 
 }
@@ -90,25 +78,36 @@ messageHandler = rendererMessageHandler;
 
 function startRendering()
 {
-    newRequest.hit = hit;
-    newRequest.normalDir = normalDir;
-    newRequest.rayDir = rayDir;
-    newRequest.rayOrigin = fromRequest;
+    //newRequest.hit = hit;
+    //newRequest.normalDir = normalDir;
+    //newRequest.rayDir = rayDir;
+    //newRequest.rayOrigin = fromRequest;
 
-    var color = rayTracer.trace(newRequest);
-    var newHit = rayTracer.getHit();
+   // var color = rayTracer.trace(newRequest);
+   // var newHit = rayTracer.getHit();
+
+    var request = new Sample();
+    request.hit = hit;
+    request.normalDir = normalDir;
+    request.rayDir = rayDir;
+    request.pixel.x = pixel.x;
+    request.pixel.y = pixel.y;
+    request.pixel.element = request;
+
+    request.doRaytracing(rayTracer, fromRequest, request);
+
     //console.log(color)
     // send result buffer
     //var buf8  = new Uint8ClampedArray(buffer);
-    var pixelIndex = width*(height - pixel.y) - (width - pixel.x);
+    //var pixelIndex = width*(height - pixel.y) - (width - pixel.x);
 
-    colorArray[pixelIndex] = color;
+    //colorArray[pixelIndex] = color;
 
     postMessage({
         "action": "result",
-        "data": [color.x, color.y, color.z, 
+        /*"data": [color.x, color.y, color.z, 
                 newHit.x, newHit.y, newHit.z,
                 pixel.x, pixel.y
-                ],
+                ],*/
     });
 }
