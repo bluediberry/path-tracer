@@ -137,10 +137,10 @@ export default class Driver {
     + "\n requests: " + this.statistics.requests
     + "\n totalFrames: " + frameIndex);*/
 
-    if(this.statistics.completeness  >= 70 && this.counter === 1){
+    if(this.statistics.completeness  >= 65 && this.counter === 1){
       var after = Date.now();
       this.counter = 0;
-      console.log( (after - this.start)/1000 + " seconds to achieve 70% completeness");
+      console.log( (after - this.start)/1000 + " seconds to achieve 65% completeness");
     }
 
     this.fps++;
@@ -866,7 +866,7 @@ export default class Driver {
   {
 		this.statistics.requests = requests.length;
 
-    var numberOfPromises = 20;
+    var numberOfPromises = 25;
     var numberOfRequests = 300;
     var advance = numberOfPromises * numberOfRequests;
 
