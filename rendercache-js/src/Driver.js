@@ -71,7 +71,7 @@ export default class Driver {
 			requests: 0 
 		};
 
-    this.jobCount = 5;
+    this.jobCount = 15;
     this.rows = [];
     this.startTime = Date.now();
     this.runTime = Date.now();;
