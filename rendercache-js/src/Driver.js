@@ -714,7 +714,7 @@ export default class Driver {
         samples += test
       }
     }
-    //threshold = (threshold*this.maximumSamplesPerFrameRatio);
+    threshold = (threshold*this.maximumSamplesPerFrameRatio);
 
 		// default assume one request per sample to be performed
 		var requestFactor = 1.0;
@@ -722,7 +722,7 @@ export default class Driver {
 		// maximum requests per frame, so determine the factor 
 		// of samples to request
 		requestFactor = samples / this.maximumSamplesPerFrame;
-		// if (requestFactor < 1.2) requestFactor = 1.0;
+	 if (requestFactor < 1.2) requestFactor = 1.0;
 
 		this.statistics.threshold = threshold;
 		this.statistics.requestFactor = requestFactor;
@@ -929,10 +929,7 @@ export default class Driver {
           request.color.b = Math.round(request.color.b * 255);
 
           //set pixel color to this sample color 
-          request.pixel = pixel;
-          pixel.element = request;
           request.pixel.color = request.color;
-          pixel.color = request.color;
           //sample is in use
           request.inUse = true;  
 
@@ -1016,17 +1013,21 @@ export default class Driver {
       for(var j = 0; j < this.workers.length; j++)
       {
       
+
         if(i + j < requests.length && counter <= sampleCount)
         {
           var newRequest = this.getSerializedRequest(newRequests, i + j);
           var request = requests[i + j];
-    
+
+          if(request.pixel !== null){
           newRequest.color = new Color();
           newRequest.color.copy(newRequests[i + j].color);
         
           this.prepareWorker(this.workers[j], newRequest, request, counter, sampleCount);
+          request.inUse = true;
           counter++;
       }   
+      }
     }
   }
 }

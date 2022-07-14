@@ -99,4 +99,4 @@ function animate()
 // main program
 var frameIndex = 0;
 var angle = 0;
-window.setInterval(animate,500);
+window.setInterval(animate, 5);
