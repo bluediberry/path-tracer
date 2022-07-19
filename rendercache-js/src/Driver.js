@@ -2,17 +2,20 @@ import Sample from "./Sample.js";
 import Pixel from "./Pixel.js";
 import Color from "./Color.js";
 import Vector3 from "./Vector3.js";
+import Scene from "./Scene2.js";
+import RayTracer from "./Raytracer.js";
+import Scene2 from "./Scene2.js";
 
 const INTERPOLATED = 0;
 const URGENT = 1;
 const SAMPLED = 2;
 
 export default class Driver {
-  constructor(engine, camera, ratio) {
+  constructor(camera, ratio, colorBuffer) {
     this.test = false;
     this.camera = camera;
-    this.engine = engine;
-
+    this.scene = new Scene();
+    this.engine = new RayTracer(this.scene);
     this.cache = null;
     this.buffer = null;
     this.addressY = null;
@@ -23,7 +26,7 @@ export default class Driver {
     this.numberOfSamples = 0;
 
 	  this.initialFill = 0.2;
-    this.maximumSamplesPerFrameRatio = 1/ratio;
+    this.maximumSamplesPerFrameRatio = 1/8;
     this.maximumSamplesPerFrame = this.camera.scope.x * this.camera.scope.y * this.maximumSamplesPerFrameRatio;
     this.interpolationRandom = 5;
     this.interpolationZero = 20;
@@ -67,15 +70,19 @@ export default class Driver {
 			requests: 0 
 		};
 
-    this.counter = 1;
-    this.workers = [];
-    for(var i = 0; i < 15; i++)
-    {
-        this.workers.push(new Worker("../src/RenderWorker.js", {type: 'module'} ));
-    }
-    this.fps = 0;
-    this.start = Date.now();
+    this.jobCount = 5;
+    this.rows = [];
+    this.startTime = Date.now();
+    this.runTime = Date.now();;
 
+    this.workers = [];
+    for(var i = 0; i < this.jobCount; i++)
+    {
+        this.workers.push(new Worker("www/../src/RenderWorker.js", {type: 'module'} ));
+    }
+    this.colorBuffer = colorBuffer;
+    this.newSamples = null;
+    this.counter = 0;
   }
 
   prepare(isTest) {
@@ -936,13 +943,11 @@ serializeRequests(requests)
       "data": [serialRequest.rayDir.x, serialRequest.rayDir.y, serialRequest.rayDir.z]
       
     });
-
     worker.postMessage({
       "action": "pixel",
-      "data": [serialRequest.pixel.x, serialRequest.pixel.y]
+      "data": [serialRequest.pixel.x, serialRequest.pixel.y, serialRequest.pixel.color]
       
     });
-
     worker.postMessage({
       "action": "render"
     });
@@ -959,9 +964,10 @@ serializeRequests(requests)
     var advance = numberOfPromises * numberOfRequests;
 
     var newRequests = this.serializeRequests(requests);
-    var sampleCount = requests.length;
-    var counter = 0;
     this.newSamples = [];
+    var c = new Vector3(0, 0, 0);
+    var h = new Vector3(0, 0, 0);
+    var p = new Vector3(0, 0, 0);
 
     for (var i = 0; i < requests.length; i += advance) 
     {
@@ -993,10 +999,71 @@ serializeRequests(requests)
       if(request.pixel !== null)
       {
       //make parallel here?
-     // this.prepareWorker(this.workers[j/numberOfRequests], serialRequest);
+     this.prepareWorker(this.workers[j/numberOfRequests], serialRequest);
 
-      request.doRaytracing(this.engine, this.camera.from, request);
+     this.workers[j/numberOfRequests].onmessage = function(e) {
+      var action = e.data.action;
+      var data = e.data.data;
+    
+      if(action == "result")
+      {
+        c.x = data[0];
+        c.y = data[1];
+        c.z = data[2];
+
+        h.x = data[3];
+        h.y = data[4];
+        h.z = data[5];
+
+        p.x = data[6];
+        p.y = data[7];
+
+        var pixel = this.getPixel(p.x + 1, p.y + 1);
+        //console.log(pixel);
+        //request.hit = newRequest.hit;
+        request.hit = h;
+        //console.log(request.hit);
+          // vector to color
+          request.color.copy(c.x, c.y, c.z);
+
+          // truncate if beyond 1
+          request.color.r = Math.min(1, request.color.r);
+          request.color.g = Math.min(1, request.color.g);
+          request.color.b = Math.min(1, request.color.b);
+
+          // convert pixel to bytes
+          request.color.r = Math.round(request.color.r * 255);
+          request.color.g = Math.round(request.color.g * 255);
+          request.color.b = Math.round(request.color.b * 255);
+
+          //set pixel color to this sample color 
+          request.pixel = pixel;
+          pixel.element = request;
+          request.pixel.color = request.color;
+          pixel.color = request.color;
+          //sample is in use
+          request.inUse = true;  
+
+          //var pixelIndex = this.addressY[p.y + 1] + p.x + 1;
+          //this.newSamples[this.addressY[p.y] + p.x] = pixel;
+          var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y + 1) - (this.camera.scope.x - p.x + 1);
+          this.colorBuffer[pixelIndex] =
+          this.alphaChannel | // alpha
+          (request.color.b << 16) | // blue
+          (request.color.g << 8) | // green
+          request.color.r; // red
+
+          // sample is in use
+      request.inUse = true;
+
       resolve(request);
+      }
+    }
+      //var c =  request.doRaytracing(this.engine, this.camera.from, request);
+
+      // vector to color
+      //request.color = new Color();
+      //request.color.copy(c.x, c.y, c.z);
       }; 
       }
     }    

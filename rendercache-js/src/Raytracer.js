@@ -8,6 +8,11 @@ export default class Raytracer {
     constructor(scene, camera) {
 		this.scene = scene;
 		this.camera = camera;
+        this.hit = [];
+    }
+
+    getHit(){
+        return this.hit;
     }
 
 
@@ -49,7 +54,9 @@ export default class Raytracer {
         var intersectionPoint = rayOrigin.add(sample.rayDir.multiply(tnear));
         var intersectionNormal = element.getNormal(intersectionPoint);
 
+        //needs actual sample
 		sample.hit = intersectionPoint.clone();
+        this.hit = sample.hit;
 		sample.normalDir = intersectionNormal.normalize();
 
         var bias = 1e-4;
