@@ -932,7 +932,7 @@ export default class Driver {
           request.pixel.color = request.color;
           //sample is in use
           request.inUse = true;  
-
+          request.attach(pixel);
           //var pixelIndex = this.addressY[p.y + 1] + p.x + 1;
           //this.newSamples[this.addressY[p.y] + p.x] = pixel;
           var pixelIndex = this.camera.scope.x*(this.camera.scope.y - p.y + 1) - (this.camera.scope.x - p.x + 1);
@@ -1024,6 +1024,7 @@ export default class Driver {
           newRequest.color.copy(newRequests[i + j].color);
         
           this.prepareWorker(this.workers[j], newRequest, request, counter, sampleCount);
+          request.hit = this.engine.getHit();
           request.inUse = true;
           counter++;
       }   
